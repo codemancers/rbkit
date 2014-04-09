@@ -1,0 +1,15 @@
+GIT
+  remote: git@github.com:srawlins/allocation_stats.git
+  revision: 0ea1ad8d02bf4477bf5d84339b87b4e987acd16f
+  specs:
+    allocation_stats (0.1.4)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  allocation_stats!
