@@ -117,10 +117,16 @@ create_gc_hooks(void)
 }
 
 static void newobj_i(VALUE tpval, void *data) {
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  VALUE klass = rb_tracearg_defined_class(tparg);
+  const char *klass_name = rb_class2name(klass);
   send_event(3);
 }
 
 static void freeobj_i(VALUE tpval, void *data) {
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  VALUE klass = rb_tracearg_defined_class(tparg);
+  const char *klass_name = rb_class2name(klass);
   send_event(4);
 }
 
