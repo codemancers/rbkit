@@ -105,11 +105,13 @@ gc_end_sweep_i(VALUE tpval, void *data)
 static void
 create_gc_hooks(void)
 {
-
   int i;
-  logger->hooks[0] = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_START,     gc_start_i,     logger);
-  logger->hooks[1] = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_END_MARK,  gc_end_mark_i,  logger);
-  logger->hooks[2] = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_END_SWEEP, gc_end_sweep_i, logger);
+  logger->hooks[0] =
+    rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_START,     gc_start_i,     logger);
+  logger->hooks[1] =
+    rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_END_MARK,  gc_end_mark_i,  logger);
+  logger->hooks[2] =
+    rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_GC_END_SWEEP, gc_end_sweep_i, logger);
   /* mark for GC */
   for (i=0; i<3; i++) rb_gc_register_mark_object(logger->hooks[i]);
 }
