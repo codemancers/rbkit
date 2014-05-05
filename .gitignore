@@ -1,1 +1,5 @@
 /vendor/ruby/
+/ext/Makefile
+/ext/mkmf.log
+/ext/rbkit.bundle
+/ext/rbkit.o
