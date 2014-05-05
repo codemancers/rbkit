@@ -1,5 +1,5 @@
 //
-//  gather_stats.c
+//  rbkit.c
 //  gather_stats
 //
 //  Created by Hemant Kumar on 26/04/14.
@@ -57,7 +57,6 @@ static void trace_gc_invocation(void *data, int event_index) {
     send_event(2);
   }
 }
-
 
 static struct gc_hooks * get_trace_logger() {
   int i = 0;
@@ -129,6 +128,10 @@ static VALUE start_stat_server() {
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
   int bind_result = zmq_bind(zmq_publisher, "tcp://*:5555");
   assert(bind_result == 0);
+
+  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
+  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
+  create_gc_hooks();
   return Qnil;
 }
 
@@ -137,18 +140,18 @@ static VALUE stop_stat_server() {
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
   zmq_ctx_destroy(zmq_context);
+  free(logger);
   return Qnil;
 }
 
 static VALUE stop_stat_tracing() {
   logger->enabled = Qfalse;
-    
   if (logger->hooks[0] != 0) {
     rb_tracepoint_disable(logger->hooks[0]);
     rb_tracepoint_disable(logger->hooks[1]);
     rb_tracepoint_disable(logger->hooks[2]);
   }
-    
+
   if (logger->newobj_trace) {
     rb_tracepoint_disable(logger->newobj_trace);
     rb_tracepoint_disable(logger->freeobj_trace);
@@ -158,16 +161,12 @@ static VALUE stop_stat_tracing() {
 }
 
 static VALUE start_stat_tracing() {
-  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
-  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
-  create_gc_hooks();
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
   int i = 0;
   for (i=0; i<3; i++) {
     rb_tracepoint_enable(logger->hooks[i]);
   }
-
   logger->enabled = Qtrue;
   return Qnil;
 }
