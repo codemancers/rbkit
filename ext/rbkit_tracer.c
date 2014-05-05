@@ -124,11 +124,24 @@ static void freeobj_i(VALUE tpval, void *data) {
   send_event(4);
 }
 
-static VALUE start_stat_server() {
+static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
+  int default_port = 5555;
   logger = get_trace_logger();
+  VALUE port;
+
+  rb_scan_args(argc, argv, "01", &port);
+  if (!NIL_P(port)) {
+    default_port = FIX2INT(port);
+    if (default_port < 1024 || default_port > 65000)
+      rb_raise(rb_eArgError, "invalid port value");
+  }
+
+  char zmq_endpoint[14];
+  sprintf(zmq_endpoint, "tcp://*:%d", default_port);
+
   zmq_context = zmq_ctx_new();
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  int bind_result = zmq_bind(zmq_publisher, "tcp://*:5555");
+  int bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
   assert(bind_result == 0);
 
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
@@ -178,7 +191,7 @@ static VALUE start_stat_tracing() {
 
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
-  rb_define_module_function(objectStatsModule, "start_server", start_stat_server, 0);
+  rb_define_module_function(objectStatsModule, "start_server", start_stat_server, -1);
   rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
