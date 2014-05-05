@@ -116,17 +116,33 @@ create_gc_hooks(void)
   for (i=0; i<3; i++) rb_gc_register_mark_object(logger->hooks[i]);
 }
 
+static const char *tracer_object_klass_name(VALUE klass) {
+  const char *klass_name;
+
+  switch (BUILTIN_TYPE(klass)) {
+  case T_CLASS:
+  case T_MODULE:
+    klass_name = rb_class2name(klass);
+    break;
+  default:
+    klass_name = "unknown";
+  }
+  return klass_name;
+}
+
 static void newobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE klass = rb_tracearg_defined_class(tparg);
-  const char *klass_name = rb_class2name(klass);
+  const char *klass_name = tracer_object_klass_name(klass);
+  puts(klass_name);
   send_event(3);
 }
 
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE klass = rb_tracearg_defined_class(tparg);
-  const char *klass_name = rb_class2name(klass);
+  const char *klass_name = tracer_object_klass_name(klass);
+  puts(klass_name);
   send_event(4);
 }
 
