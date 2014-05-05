@@ -1,5 +1,6 @@
 require "rbkit_tracer"
 
+# Top level module for profiler
 module Rbkit
   def self.start_profiling
     start_server

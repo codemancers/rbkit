@@ -164,6 +164,7 @@ static VALUE stop_stat_server() {
   return Qnil;
 }
 
+
 static VALUE start_stat_tracing() {
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
