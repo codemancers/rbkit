@@ -7,7 +7,7 @@ if(have_func('rb_postponed_job_register_one') &&
   have_header("zmq.h") &&
   have_library("msgpack") &&
   have_header("msgpack.h"))
-  create_makefile('rbkit')
+  create_makefile('rbkit_tracer')
 else
   fail 'missing API: are you using ruby 2.1+?'
 end

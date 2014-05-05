@@ -1,6 +1,6 @@
 /vendor/ruby/
 /ext/Makefile
 /ext/mkmf.log
-/ext/rbkit.bundle
-/ext/rbkit.o
+/ext/rbkit_tracer.bundle
+/ext/rbkit_tracer.o
 Gemfile.lock

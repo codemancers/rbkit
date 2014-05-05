@@ -173,7 +173,7 @@ static VALUE start_stat_tracing() {
   return Qnil;
 }
 
-void Init_gather_stats(void) {
+void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start", start_stat_server, 0);
   rb_define_module_function(objectStatsModule, "stop", stop_stat_server, 0);
