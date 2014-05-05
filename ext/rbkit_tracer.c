@@ -126,7 +126,6 @@ static void freeobj_i(VALUE tpval, void *data) {
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   int default_port = 5555;
-  logger = get_trace_logger();
   VALUE port;
 
   rb_scan_args(argc, argv, "01", &port);
@@ -135,6 +134,8 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
     if (default_port < 1024 || default_port > 65000)
       rb_raise(rb_eArgError, "invalid port value");
   }
+
+  logger = get_trace_logger();
 
   char zmq_endpoint[14];
   sprintf(zmq_endpoint, "tcp://*:%d", default_port);
