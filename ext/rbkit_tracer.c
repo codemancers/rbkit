@@ -137,17 +137,7 @@ static VALUE start_stat_server() {
   return Qnil;
 }
 
-static VALUE stop_stat_server() {
-  msgpack_sbuffer_destroy(logger->sbuf);
-  msgpack_packer_free(logger->msgpacker);
-  zmq_close(zmq_publisher);
-  zmq_ctx_destroy(zmq_context);
-  free(logger);
-  return Qnil;
-}
-
 static VALUE stop_stat_tracing() {
-  logger->enabled = Qfalse;
   if (logger->hooks[0] != 0) {
     rb_tracepoint_disable(logger->hooks[0]);
     rb_tracepoint_disable(logger->hooks[1]);
@@ -158,7 +148,19 @@ static VALUE stop_stat_tracing() {
     rb_tracepoint_disable(logger->newobj_trace);
     rb_tracepoint_disable(logger->freeobj_trace);
   }
+  logger->enabled = Qfalse;
+  return Qnil;
+}
 
+static VALUE stop_stat_server() {
+  if (logger->enabled == Qtrue)
+    stop_stat_tracing();
+
+  msgpack_sbuffer_destroy(logger->sbuf);
+  msgpack_packer_free(logger->msgpacker);
+  zmq_close(zmq_publisher);
+  zmq_ctx_destroy(zmq_context);
+  free(logger);
   return Qnil;
 }
 
@@ -175,8 +177,8 @@ static VALUE start_stat_tracing() {
 
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
-  rb_define_module_function(objectStatsModule, "start", start_stat_server, 0);
-  rb_define_module_function(objectStatsModule, "stop", stop_stat_server, 0);
+  rb_define_module_function(objectStatsModule, "start_server", start_stat_server, 0);
+  rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
 }
