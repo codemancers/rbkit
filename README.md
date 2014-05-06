@@ -2,16 +2,19 @@
 
 For compiling it, install:
 
-*. brew install zeromq
-
-*. brew install msgpack
+```
+~> brew install zeromq
+~> brew install msgpack
+```
 
 At some point, we will bundle these two C libraries during gem installations
 but for now, this has to suffice.
 
 2. After that, run
 
+```
 ruby extconf.rb
+```
 
 3. and then
 
