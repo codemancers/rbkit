@@ -42,8 +42,14 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 
-static void send_event(int event_index) {
+static void send_event(int event_index, char *class_name) {
   const char *event = event_names[event_index];
+  const char *full_event;
+
+  if (class_name) {
+    full_event = (char *)malloc(strlen(event) + strlen(class_name)) + 2;
+  }
+
   msgpack_sbuffer_clear(logger->sbuf);
   msgpack_pack_raw(logger->msgpacker, strlen(event));
   msgpack_pack_raw_body(logger->msgpacker, event, strlen(event));
@@ -52,9 +58,9 @@ static void send_event(int event_index) {
 
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
-    send_event(1);
+    send_event(1, NULL);
   } else if (event_index == 2) {
-    send_event(2);
+    send_event(2, NULL);
   }
 }
 
@@ -116,34 +122,26 @@ create_gc_hooks(void)
   for (i=0; i<3; i++) rb_gc_register_mark_object(logger->hooks[i]);
 }
 
-static const char *tracer_object_klass_name(VALUE klass) {
-  const char *klass_name;
-
-  switch (BUILTIN_TYPE(klass)) {
-  case T_CLASS:
-  case T_MODULE:
-    klass_name = rb_class2name(klass);
-    break;
-  default:
-    klass_name = "unknown";
-  }
-  return klass_name;
-}
-
 static void newobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
-  VALUE klass = rb_tracearg_defined_class(tparg);
-  const char *klass_name = tracer_object_klass_name(klass);
-  puts(klass_name);
-  send_event(3);
+  VALUE obj = rb_tracearg_object(tparg);
+  VALUE klass = RBASIC_CLASS(obj);
+  if (!NIL_P(klass)) {
+    send_event(3, rb_class2name(klass));
+  } else {
+    send_event(3, NULL);
+  }
 }
 
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
-  VALUE klass = rb_tracearg_defined_class(tparg);
-  const char *klass_name = tracer_object_klass_name(klass);
-  puts(klass_name);
-  send_event(4);
+  VALUE obj = rb_tracearg_object(tparg);
+  VALUE klass = RBASIC_CLASS(obj);
+  if (!NIL_P(klass)) {
+    send_event(4, rb_class2name(klass));
+  } else {
+    send_event(4, NULL);
+  }
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
