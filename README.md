@@ -18,7 +18,9 @@ ruby extconf.rb
 
 3. and then
 
+```
 make
+```
 
 4. Tasks to do:
 
