@@ -42,18 +42,25 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 
-static void send_event(int event_index, char *class_name) {
+static void send_event(int event_index, const char *class_name) {
   const char *event = event_names[event_index];
-  const char *full_event;
+  char *full_event;
+  unsigned long message_size;
 
-  if (class_name) {
-    full_event = (char *)malloc(strlen(event) + strlen(class_name)) + 2;
+  if (class_name != NULL) {
+    message_size = strlen(event) + strlen(class_name) + 2;
+    full_event = (char *)malloc(message_size);
+    snprintf(full_event, message_size, "%s %s", event, class_name);
+  } else {
+    message_size = strlen(event) + 1;
+    full_event = (char *)malloc(message_size);
+    snprintf(full_event, message_size, "%s", event);
   }
-
   msgpack_sbuffer_clear(logger->sbuf);
-  msgpack_pack_raw(logger->msgpacker, strlen(event));
-  msgpack_pack_raw_body(logger->msgpacker, event, strlen(event));
+  msgpack_pack_raw(logger->msgpacker, message_size);
+  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size);
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
+  free(full_event);
 }
 
 static void trace_gc_invocation(void *data, int event_index) {
