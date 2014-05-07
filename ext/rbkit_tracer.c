@@ -57,8 +57,8 @@ static void send_event(int event_index, const char *class_name) {
     snprintf(full_event, message_size, "%s", event);
   }
   msgpack_sbuffer_clear(logger->sbuf);
-  msgpack_pack_raw(logger->msgpacker, message_size);
-  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size);
+  msgpack_pack_raw(logger->msgpacker, message_size - 1);
+  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size -1);
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
   free(full_event);
 }
