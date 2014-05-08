@@ -29,4 +29,4 @@ make
 * [X] Write some ruby code that installs at_exit block for socket cleanup.
 * [X] Fix memory leak around event names.
 * [X] Allow user to specify port where profiler should start.
-* [ ] Implement support for returning object classes along with event names.
+* [X] Implement support for returning object classes along with event names.
