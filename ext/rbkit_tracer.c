@@ -42,19 +42,32 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 
-static void send_event(int event_index) {
+static void send_event(int event_index, const char *class_name) {
   const char *event = event_names[event_index];
+  char *full_event;
+  unsigned long message_size;
+
+  if (class_name != NULL) {
+    message_size = strlen(event) + strlen(class_name) + 2;
+    full_event = (char *)malloc(message_size);
+    snprintf(full_event, message_size, "%s %s", event, class_name);
+  } else {
+    message_size = strlen(event) + 1;
+    full_event = (char *)malloc(message_size);
+    snprintf(full_event, message_size, "%s", event);
+  }
   msgpack_sbuffer_clear(logger->sbuf);
-  msgpack_pack_raw(logger->msgpacker, strlen(event));
-  msgpack_pack_raw_body(logger->msgpacker, event, strlen(event));
+  msgpack_pack_raw(logger->msgpacker, message_size - 1);
+  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size -1);
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
+  free(full_event);
 }
 
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
-    send_event(1);
+    send_event(1, NULL);
   } else if (event_index == 2) {
-    send_event(2);
+    send_event(2, NULL);
   }
 }
 
@@ -117,11 +130,25 @@ create_gc_hooks(void)
 }
 
 static void newobj_i(VALUE tpval, void *data) {
-  send_event(3);
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  VALUE obj = rb_tracearg_object(tparg);
+  VALUE klass = RBASIC_CLASS(obj);
+  if (!NIL_P(klass)) {
+    send_event(3, rb_class2name(klass));
+  } else {
+    send_event(3, NULL);
+  }
 }
 
 static void freeobj_i(VALUE tpval, void *data) {
-  send_event(4);
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  VALUE obj = rb_tracearg_object(tparg);
+  VALUE klass = RBASIC_CLASS(obj);
+  if (!NIL_P(klass)) {
+    send_event(4, rb_class2name(klass));
+  } else {
+    send_event(4, NULL);
+  }
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
