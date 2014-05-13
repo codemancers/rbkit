@@ -42,6 +42,6 @@ struct event_info {
   const char *event_name;
   const char *class_name;
   VALUE object_id;
-}
+};
 
 #endif

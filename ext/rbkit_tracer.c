@@ -21,7 +21,7 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 
-static int event_message(struct event_info *event_details, char **full_event) {
+static int event_message(struct event_info event_details, char **full_event) {
   int message_size;
 
   if (event_details.class_name != NULL && event_details.object_id != 0) {
@@ -44,7 +44,7 @@ static struct event_info get_event_info(int event_index, const char *class_name,
   return event_details;
 }
 
-static void send_event(struct event_info *event_details) {
+static void send_event(struct event_info event_details) {
   char *full_event;
   int message_size = event_message(event_details, &full_event);
 
@@ -130,9 +130,13 @@ static void newobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   if (!NIL_P(klass)) {
-    send_event(3, rb_class2name(klass));
+    struct event_info event_details = get_event_info(3, rb_class2name(klass), obj);
+    send_event(event_details);
+    free(&event_details);
   } else {
-    send_event(3, NULL);
+    struct event_info event_details = get_event_info(3, NULL, obj);
+    send_event(event_details);
+    free(&event_details);
   }
 }
 
@@ -141,9 +145,13 @@ static void freeobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   if (!NIL_P(klass)) {
-    send_event(4, rb_class2name(klass));
+    struct event_info event_details = get_event_info(4, rb_class2name(klass), obj);
+    send_event(event_details);
+    free(&event_details);
   } else {
-    send_event(4, NULL);
+    struct event_info event_details = get_event_info(4, NULL, obj);
+    send_event(event_details);
+    free(&event_details);
   }
 }
 
