@@ -6,28 +6,7 @@
 //  Copyright (c) 2014 Codemancers. All rights reserved.
 //
 
-#include "ruby/ruby.h"
-#include "ruby/debug.h"
-#include <stdio.h>
-#include <assert.h>
-#include "zmq.h"
-#include "msgpack.h"
-
-// Structure is used to store profiling data
-struct gc_hooks {
-  VALUE hooks[3];
-  VALUE enabled;
-  void (*funcs[3])(void *data, int event_index);
-  void *args[3];
-  void *data;
-  st_table *object_table;
-  st_table *str_table;
-  VALUE newobj_trace;
-  VALUE freeobj_trace;
-  int keep_remains;
-  msgpack_sbuffer *sbuf;
-  msgpack_packer *msgpacker;
-};
+#include "rbkit_tracer.h"
 
 static const char *event_names[] = {
   "gc_start",
@@ -42,32 +21,47 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 
-static void send_event(int event_index, const char *class_name) {
-  const char *event = event_names[event_index];
-  char *full_event;
-  unsigned long message_size;
+static int event_message(struct event_info event_details, char **full_event) {
+  int message_size;
 
-  if (class_name != NULL) {
-    message_size = strlen(event) + strlen(class_name) + 2;
-    full_event = (char *)malloc(message_size);
-    snprintf(full_event, message_size, "%s %s", event, class_name);
+  if (event_details.class_name != NULL && event_details.object_id != 0) {
+    message_size =
+      asprintf(full_event, "%s %s %p",
+               event_details.event_name,
+               event_details.class_name,
+               (void *)event_details.object_id);
+  } else if(event_details.class_name != NULL && event_details.object_id == 0) {
+    message_size = asprintf(full_event, "%s %s %d", event_details.event_name, event_details.class_name, 0);
   } else {
-    message_size = strlen(event) + 1;
-    full_event = (char *)malloc(message_size);
-    snprintf(full_event, message_size, "%s", event);
+    message_size = asprintf(full_event, "%s", event_details.event_name);
   }
+  return message_size;
+}
+
+static struct event_info get_event_info(int event_index, const char *class_name, VALUE object_id)
+{
+  struct event_info event_details = { event_names[event_index], class_name, object_id };
+  return event_details;
+}
+
+static void send_event(struct event_info event_details) {
+  char *full_event;
+  int message_size = event_message(event_details, &full_event);
+
   msgpack_sbuffer_clear(logger->sbuf);
-  msgpack_pack_raw(logger->msgpacker, message_size - 1);
-  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size -1);
+  msgpack_pack_raw(logger->msgpacker, message_size);
+  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size);
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
   free(full_event);
 }
 
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
-    send_event(1, NULL);
+    struct event_info event_details = get_event_info(0, NULL, 0);
+    send_event(event_details);
   } else if (event_index == 2) {
-    send_event(2, NULL);
+    struct event_info event_details = get_event_info(2, NULL, 0);
+    send_event(event_details);
   }
 }
 
@@ -134,9 +128,11 @@ static void newobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   if (!NIL_P(klass)) {
-    send_event(3, rb_class2name(klass));
+    struct event_info event_details = get_event_info(3, rb_class2name(klass), obj);
+    send_event(event_details);
   } else {
-    send_event(3, NULL);
+    struct event_info event_details = get_event_info(3, NULL, obj);
+    send_event(event_details);
   }
 }
 
@@ -145,9 +141,11 @@ static void freeobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   if (!NIL_P(klass)) {
-    send_event(4, rb_class2name(klass));
+    struct event_info event_details = get_event_info(4, rb_class2name(klass), obj);
+    send_event(event_details);
   } else {
-    send_event(4, NULL);
+    struct event_info event_details = get_event_info(4, NULL, obj);
+    send_event(event_details);
   }
 }
 
