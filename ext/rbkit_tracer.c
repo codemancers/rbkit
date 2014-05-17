@@ -59,11 +59,9 @@ static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
     struct event_info event_details = get_event_info(0, NULL, 0);
     send_event(event_details);
-    free(&event_details);
   } else if (event_index == 2) {
     struct event_info event_details = get_event_info(2, NULL, 0);
     send_event(event_details);
-    free(&event_details);
   }
 }
 
@@ -132,11 +130,9 @@ static void newobj_i(VALUE tpval, void *data) {
   if (!NIL_P(klass)) {
     struct event_info event_details = get_event_info(3, rb_class2name(klass), obj);
     send_event(event_details);
-    free(&event_details);
   } else {
     struct event_info event_details = get_event_info(3, NULL, obj);
     send_event(event_details);
-    free(&event_details);
   }
 }
 
@@ -147,11 +143,9 @@ static void freeobj_i(VALUE tpval, void *data) {
   if (!NIL_P(klass)) {
     struct event_info event_details = get_event_info(4, rb_class2name(klass), obj);
     send_event(event_details);
-    free(&event_details);
   } else {
     struct event_info event_details = get_event_info(4, NULL, obj);
     send_event(event_details);
-    free(&event_details);
   }
 }
 
