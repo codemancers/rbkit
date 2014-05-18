@@ -4,4 +4,6 @@
 /ext/rbkit_tracer.bundle
 /ext/rbkit_tracer.o
 Gemfile.lock
+*.so
 *.gem
+.ruby-version
