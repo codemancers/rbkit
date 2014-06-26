@@ -7,6 +7,7 @@
 //
 
 #include "rbkit_tracer.h"
+#include "object_graph.h"
 
 static const char *event_names[] = {
   "gc_start",
@@ -221,4 +222,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
+  init_object_graph();
 }

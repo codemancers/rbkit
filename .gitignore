@@ -2,8 +2,9 @@
 /ext/Makefile
 /ext/mkmf.log
 /ext/rbkit_tracer.bundle
-/ext/rbkit_tracer.o
+/ext/*.o
 Gemfile.lock
 *.so
 *.gem
 .ruby-version
+/mkmf.log
