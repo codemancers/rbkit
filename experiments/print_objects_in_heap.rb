@@ -7,4 +7,7 @@ class Animal;end
 
 ObjectGraph.print_class_using_class2name(Animal.new)
 
+a = []
+
+1000.times { a << Animal.new }
 ObjectGraph.print_heap_objects
