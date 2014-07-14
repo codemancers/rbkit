@@ -140,7 +140,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
-  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
+  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS && BUILTIN_TYPE(obj) != T_OBJECT) {
     struct event_info event_details = get_event_info(4, rb_class2name(klass), obj);
     send_event(event_details);
   } else {
