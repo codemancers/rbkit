@@ -3,6 +3,8 @@
 /ext/mkmf.log
 /ext/rbkit_tracer.bundle
 /ext/*.o
+/lib/rbkit_tracer.bundle
+/tmp
 Gemfile.lock
 *.so
 *.gem

@@ -13,16 +13,11 @@ but for now, this has to suffice.
 2. After that, run
 
 ```
-ruby extconf.rb
+bundle install
+bundle exec rake compile
 ```
 
-3. and then
-
-```
-make
-```
-
-4. Tasks to do:
+3. Tasks to do:
 
 * [X] implement support for disabling trackpoints
 * [X] implement support for cleaning zmq context on shutdown.
