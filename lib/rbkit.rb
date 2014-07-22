@@ -6,4 +6,8 @@ module Rbkit
     start_stat_tracing
     at_exit { stop_server }
   end
+
+  def self.dump_objects
+    send_objectspace_dump
+  end
 end
