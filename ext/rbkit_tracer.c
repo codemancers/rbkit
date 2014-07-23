@@ -231,14 +231,14 @@ static VALUE send_objectspace_dump() {
     /* ObjectData is a map that looks like this :
      * {
      *   object_id: <OBJECT_ID_IN_HEX>,
-     *   TODO: class_name: <CLASS_NAME>,
+     *   class_name: <CLASS_NAME>,
      *   TODO: references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
      *   TODO: file: <FILE_PATH>,
      *   TODO: line: <LINE_NO>
      * }
      */
 
-    msgpack_pack_map(pk, 1);
+    msgpack_pack_map(pk, 2);
 
     // Key1 : "object_id"
     msgpack_pack_raw(pk, strlen("object_id"));
@@ -250,6 +250,15 @@ static VALUE send_objectspace_dump() {
     msgpack_pack_raw(pk, strlen(object_id));
     msgpack_pack_raw_body(pk, object_id, strlen(object_id));
     free(object_id);
+
+    // Key2 : "class_name"
+    msgpack_pack_raw(pk, strlen("class_name"));
+    msgpack_pack_raw_body(pk, "class_name", strlen("class_name"));
+
+    // Value2 : Class name of object
+    msgpack_pack_raw(pk, strlen(data->class_name));
+    msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+
     free(data);
   }
 

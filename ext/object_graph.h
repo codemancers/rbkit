@@ -2,9 +2,9 @@
 #define OBJECT_GRAPH
 
 struct ObjectData {
-  void * object_id;
-  char * class_name;
-  void * references;
+  const void * object_id;
+  const char * class_name;
+  void ** references;
   char * file;
   int line;
   struct ObjectData *next;
