@@ -232,13 +232,13 @@ static VALUE send_objectspace_dump() {
      * {
      *   object_id: <OBJECT_ID_IN_HEX>,
      *   class_name: <CLASS_NAME>,
-     *   TODO: references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
+     *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
      *   TODO: file: <FILE_PATH>,
      *   TODO: line: <LINE_NO>
      * }
      */
 
-    msgpack_pack_map(pk, 2);
+    msgpack_pack_map(pk, 3);
 
     // Key1 : "object_id"
     msgpack_pack_raw(pk, strlen("object_id"));
@@ -256,8 +256,28 @@ static VALUE send_objectspace_dump() {
     msgpack_pack_raw_body(pk, "class_name", strlen("class_name"));
 
     // Value2 : Class name of object
-    msgpack_pack_raw(pk, strlen(data->class_name));
-    msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+    if(data->class_name == NULL) {
+      msgpack_pack_nil(pk);
+    } else {
+      msgpack_pack_raw(pk, strlen(data->class_name));
+      msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+    }
+
+    // Key3 : "references"
+    msgpack_pack_raw(pk, strlen("references"));
+    msgpack_pack_raw_body(pk, "references", strlen("class_name"));
+
+    // Value3 : References held by the object
+    msgpack_pack_array(pk, data->reference_count);
+    if(data->reference_count != 0) {
+      for(size_t count=0; count < data->reference_count; count++ ) {
+        char * object_id;
+        asprintf(&object_id, "%p", data->references[count]);
+        msgpack_pack_raw(pk, strlen(object_id));
+        msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+      }
+      free(data->references);
+    }
 
     free(data);
   }
