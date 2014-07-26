@@ -6,7 +6,6 @@ Thread.abort_on_exception = true
 
 ctx = ZMQ::Context.new
 socket = ctx.socket(:SUB)
-socket.verbose = true
 socket.subscribe("")
 socket.connect("tcp://127.0.0.1:5555")
 
@@ -20,4 +19,8 @@ loop do
   message = socket.recv
   unpacked_message = MessagePack.unpack(message)
   p unpacked_message
+
+  request_socket.send("stop_memory_profile")
+  response = request_socket.recv
+  puts "received #{response}"
 end
