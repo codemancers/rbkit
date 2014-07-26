@@ -270,7 +270,8 @@ static VALUE send_objectspace_dump() {
     // Value3 : References held by the object
     msgpack_pack_array(pk, data->reference_count);
     if(data->reference_count != 0) {
-      for(size_t count=0; count < data->reference_count; count++ ) {
+      size_t count = 0;
+      for(; count < data->reference_count; count++ ) {
         char * object_id;
         asprintf(&object_id, "%p", data->references[count]);
         msgpack_pack_raw(pk, strlen(object_id));
