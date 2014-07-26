@@ -49,4 +49,8 @@ module Rbkit
       @profiler.stop_server
     end
   end
+
+  def self.dump_objects
+    send_objectspace_dump
+  end
 end

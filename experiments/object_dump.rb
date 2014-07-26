@@ -11,8 +11,10 @@ class Foo
 end
 
 stuff = {}
-10_00_0000.times do |i|
-  sleep 1
+100.times do |i|
+  sleep 0.01
   foo = Foo.new("hemant-#{i}")
   stuff["name#{i}"] = "hemant-#{i}"
 end
+
+Rbkit.dump_objects
