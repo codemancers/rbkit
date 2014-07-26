@@ -1,4 +1,5 @@
 $:<< File.join(File.dirname(__FILE__), "../lib")
+$:<< File.join(File.dirname(__FILE__), "../ext")
 
 require 'rbkit'
 
@@ -12,7 +13,7 @@ end
 
 stuff = {}
 10_00_0000.times do |i|
-  sleep 0.01
+  sleep 1
   foo = Foo.new("hemant-#{i}")
   stuff["name#{i}"] = "hemant-#{i}"
 end

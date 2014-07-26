@@ -9,4 +9,6 @@ Gemfile.lock
 *.so
 *.gem
 .ruby-version
+/ext/.kdev4/
+/ext/ext.kdev4
 /mkmf.log

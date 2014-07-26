@@ -21,6 +21,8 @@ static struct gc_hooks *logger;
 static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
+static void *zmq_response_socket;
+static zmq_pollitem_t items[1];
 
 static int event_message(struct event_info event_details, char **full_event) {
   int message_size;
@@ -151,30 +153,85 @@ static void freeobj_i(VALUE tpval, void *data) {
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
-  int default_port = 5555;
-  VALUE port;
+  int default_pub_port = 5555;
+  int default_request_port = 5556;
+  VALUE pub_port;
+  VALUE request_port;
+  int bind_result;
 
-  rb_scan_args(argc, argv, "01", &port);
-  if (!NIL_P(port)) {
-    default_port = FIX2INT(port);
-    if (default_port < 1024 || default_port > 65000)
+  rb_scan_args(argc, argv, "02", &pub_port, &request_port);
+  if (!NIL_P(pub_port)) {
+    default_pub_port = FIX2INT(pub_port);
+    if (default_pub_port < 1024 || default_pub_port > 65000)
+      rb_raise(rb_eArgError, "invalid port value");
+  }
+  
+  if (!NIL_P(request_port)) {
+    default_request_port = FIX2INT(request_port);
+    if(default_request_port < 1024 || default_request_port > 65000)
       rb_raise(rb_eArgError, "invalid port value");
   }
 
   logger = get_trace_logger();
 
   char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", default_port);
+  sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
 
   zmq_context = zmq_ctx_new();
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  int bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
   assert(bind_result == 0);
-
+  
+  char zmq_request_endpoint[14];
+  sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
+  
+  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
+  assert(bind_result == 0);
+  
+  items[0].socket = zmq_response_socket;
+  items[0].events = ZMQ_POLLIN;
+  
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
   create_gc_hooks();
   return Qnil;
+}
+
+static char * tracer_string_recv(void *socket) {
+  zmq_msg_t msg;
+  int rc = zmq_msg_init(&msg);
+  assert(rc == 0);
+
+  rc = zmq_msg_recv(&msg, socket, 0);
+  assert(rc != -1);
+  size_t message_size = zmq_msg_size(&msg);
+  char *message = (char *)malloc(message_size +1);
+  memcpy(message, zmq_msg_data(&msg), message_size);
+  message[message_size] = 0;
+  zmq_msg_close(&msg);
+  return message;
+}
+
+
+static int tracer_string_send(void *socket, const char *message) {
+   int size = zmq_send (socket, message, strlen (message), 0);
+   return size;
+}
+
+static VALUE poll_for_request() {
+  // Wait for 100 millisecond and check if there is a message
+  // we can't wait here indefenitely because ruby is not aware this is a 
+  // blocking operation. Remember ruby releases GVL in a thread
+  // whenever it encounters a known blocking operation.
+  zmq_poll(items, 1, 100);
+  if (items[0].revents && ZMQ_POLLIN) {
+    char *message = tracer_string_recv(zmq_response_socket);
+    tracer_string_send(zmq_response_socket, "ok");
+    return rb_str_new_cstr(message);
+  } else {
+    return Qnil;
+  }
 }
 
 static VALUE stop_stat_tracing() {
@@ -199,11 +256,11 @@ static VALUE stop_stat_server() {
   msgpack_sbuffer_destroy(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
+  zmq_close(zmq_response_socket);
   zmq_ctx_destroy(zmq_context);
   free(logger);
   return Qnil;
 }
-
 
 static VALUE start_stat_tracing() {
   rb_tracepoint_enable(logger->newobj_trace);
@@ -300,5 +357,6 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
 }
