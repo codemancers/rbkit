@@ -21,7 +21,7 @@ static struct gc_hooks *logger;
 static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
-static void *zmq_request_socket;
+static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 
 static int event_message(struct event_info event_details, char **full_event) {
@@ -185,11 +185,11 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   char zmq_request_endpoint[14];
   sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
   
-  zmq_request_socket = zmq_socket(zmq_context, ZMQ_REP);
-  bind_result = zmq_bind(zmq_request_socket, zmq_request_endpoint);
+  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
   assert(bind_result == 0);
   
-  items[0].socket = zmq_request_socket;
+  items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
   
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
@@ -223,8 +223,8 @@ static VALUE poll_for_request() {
   // Wait for 100 millisecond and check if there is a message
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
-    char *message = tracer_string_recv(zmq_request_socket);
-    tracer_string_send(zmq_request_socket, "ok");
+    char *message = tracer_string_recv(zmq_response_socket);
+    tracer_string_send(zmq_response_socket, "ok");
     return rb_str_new_cstr(message);
   } else {
     return Qnil;
@@ -253,7 +253,7 @@ static VALUE stop_stat_server() {
   msgpack_sbuffer_destroy(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
-  zmq_close(zmq_request_socket);
+  zmq_close(zmq_response_socket);
   zmq_ctx_destroy(zmq_context);
   free(logger);
   return Qnil;
