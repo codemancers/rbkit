@@ -21,6 +21,7 @@ static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 static void *zmq_request_socket;
+static zmq_pollitem_t items[1];
 
 static int event_message(struct event_info event_details, char **full_event) {
   int message_size;
@@ -186,15 +187,47 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   zmq_request_socket = zmq_socket(zmq_context, ZMQ_REP);
   bind_result = zmq_bind(zmq_request_socket, zmq_request_endpoint);
   assert(bind_result == 0);
-
+  
+  items[0].socket = zmq_request_socket;
+  items[0].events = ZMQ_POLLIN;
+  
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
   create_gc_hooks();
   return Qnil;
 }
 
+static char * tracer_string_recv(void *socket) {
+  zmq_msg_t msg;
+  int rc = zmq_msg_init(&msg);
+  assert(rc == 0);
+
+  rc = zmq_msg_recv(&msg, socket, 0);
+  assert(rc != -1);
+  size_t message_size = zmq_msg_size(&msg);
+  char *message = (char *)malloc(message_size +1);
+  memcpy(message, zmq_msg_data(&msg), message_size);
+  message[message_size] = 0;
+  zmq_msg_close(&msg);
+  return message;
+}
+
+
+static int tracer_string_send(void *socket, const char *message) {
+   int size = zmq_send (socket, message, strlen (message), 0);
+   return size;
+}
+
 static VALUE poll_for_request() {
-  
+  // Wait for 100 millisecond and check if there is a message
+  zmq_poll(items, 1, 100);
+  if (items[0].revents && ZMQ_POLLIN) {
+    char *message = tracer_string_recv(zmq_request_socket);
+    tracer_string_send(zmq_request_socket, "ok");
+    return rb_str_new_cstr(message);
+  } else {
+    return Qnil;
+  }
 }
 
 static VALUE stop_stat_tracing() {
@@ -219,6 +252,7 @@ static VALUE stop_stat_server() {
   msgpack_sbuffer_destroy(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
+  zmq_close(zmq_request_socket);
   zmq_ctx_destroy(zmq_context);
   free(logger);
   return Qnil;
