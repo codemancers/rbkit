@@ -7,6 +7,7 @@
 //
 
 #include "rbkit_tracer.h"
+#include "object_graph.h"
 
 static const char *event_names[] = {
   "gc_start",
@@ -215,10 +216,89 @@ static VALUE start_stat_tracing() {
   return Qnil;
 }
 
+static VALUE send_objectspace_dump() {
+  msgpack_sbuffer* buffer = msgpack_sbuffer_new();
+  msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  struct ObjectDump * dump = get_object_dump();
+
+  // Set size of array to hold all objects
+  msgpack_pack_array(pk, dump->size);
+
+  // Iterate through all object data
+  struct ObjectData * data = dump->first ;
+  for(;data != NULL; data = data->next ) {
+    /* ObjectData is a map that looks like this :
+     * {
+     *   object_id: <OBJECT_ID_IN_HEX>,
+     *   class_name: <CLASS_NAME>,
+     *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
+     *   TODO: file: <FILE_PATH>,
+     *   TODO: line: <LINE_NO>
+     * }
+     */
+
+    msgpack_pack_map(pk, 3);
+
+    // Key1 : "object_id"
+    msgpack_pack_raw(pk, strlen("object_id"));
+    msgpack_pack_raw_body(pk, "object_id", strlen("object_id"));
+
+    // Value1 : pointer address of object
+    char * object_id;
+    asprintf(&object_id, "%p", data->object_id);
+    msgpack_pack_raw(pk, strlen(object_id));
+    msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+    free(object_id);
+
+    // Key2 : "class_name"
+    msgpack_pack_raw(pk, strlen("class_name"));
+    msgpack_pack_raw_body(pk, "class_name", strlen("class_name"));
+
+    // Value2 : Class name of object
+    if(data->class_name == NULL) {
+      msgpack_pack_nil(pk);
+    } else {
+      msgpack_pack_raw(pk, strlen(data->class_name));
+      msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+    }
+
+    // Key3 : "references"
+    msgpack_pack_raw(pk, strlen("references"));
+    msgpack_pack_raw_body(pk, "references", strlen("class_name"));
+
+    // Value3 : References held by the object
+    msgpack_pack_array(pk, data->reference_count);
+    if(data->reference_count != 0) {
+      size_t count = 0;
+      for(; count < data->reference_count; count++ ) {
+        char * object_id;
+        asprintf(&object_id, "%p", data->references[count]);
+        msgpack_pack_raw(pk, strlen(object_id));
+        msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+      }
+      free(data->references);
+    }
+
+    free(data);
+  }
+
+  // Send packed message over zmq
+  zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+
+  //Cleanup
+  free(dump);
+  msgpack_sbuffer_destroy(buffer);
+  msgpack_packer_free(pk);
+
+  return Qnil;
+}
+
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_server", start_stat_server, -1);
   rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
 }
