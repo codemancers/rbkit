@@ -20,6 +20,7 @@ static struct gc_hooks *logger;
 static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
+static void *zmq_request_socket;
 
 static int event_message(struct event_info event_details, char **full_event) {
   int message_size;
@@ -150,30 +151,50 @@ static void freeobj_i(VALUE tpval, void *data) {
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
-  int default_port = 5555;
-  VALUE port;
+  int default_pub_port = 5555;
+  int default_request_port = 5556;
+  VALUE pub_port;
+  VALUE request_port;
+  int bind_result;
 
-  rb_scan_args(argc, argv, "01", &port);
-  if (!NIL_P(port)) {
-    default_port = FIX2INT(port);
-    if (default_port < 1024 || default_port > 65000)
+  rb_scan_args(argc, argv, "02", &pub_port, &request_port);
+  if (!NIL_P(pub_port)) {
+    default_pub_port = FIX2INT(pub_port);
+    if (default_pub_port < 1024 || default_pub_port > 65000)
+      rb_raise(rb_eArgError, "invalid port value");
+  }
+  
+  if (!NIL_P(request_port)) {
+    default_request_port = FIX2INT(request_port);
+    if(default_request_port < 1024 || default_request_port > 65000)
       rb_raise(rb_eArgError, "invalid port value");
   }
 
   logger = get_trace_logger();
 
   char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", default_port);
+  sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
 
   zmq_context = zmq_ctx_new();
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  int bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  assert(bind_result == 0);
+  
+  char zmq_request_endpoint[14];
+  sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
+  
+  zmq_request_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_request_socket, zmq_request_endpoint);
   assert(bind_result == 0);
 
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
   create_gc_hooks();
   return Qnil;
+}
+
+static VALUE poll_for_request() {
+  
 }
 
 static VALUE stop_stat_tracing() {
@@ -203,7 +224,6 @@ static VALUE stop_stat_server() {
   return Qnil;
 }
 
-
 static VALUE start_stat_tracing() {
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
@@ -221,4 +241,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
 }
