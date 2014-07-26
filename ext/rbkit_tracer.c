@@ -221,6 +221,9 @@ static int tracer_string_send(void *socket, const char *message) {
 
 static VALUE poll_for_request() {
   // Wait for 100 millisecond and check if there is a message
+  // we can't wait here indefenitely because ruby is not aware this is a 
+  // blocking operation. Remember ruby releases GVL in a thread
+  // whenever it encounters a known blocking operation.
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
