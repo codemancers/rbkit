@@ -101,14 +101,12 @@ static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
 }
 
 
-static VALUE collect_root_objects(struct ObjectDump * dump) {
+static void collect_root_objects(struct ObjectDump * dump) {
   rb_objspace_reachable_objects_from_root(root_object_i, (void *)dump);
-  return Qnil;
 }
 
-static VALUE collect_heap_objects(struct ObjectDump * dump) {
+static void collect_heap_objects(struct ObjectDump * dump) {
   rb_objspace_each_objects(heap_obj_i, (void *)dump);
-  return Qnil;
 }
 
 struct ObjectDump * get_object_dump() {
