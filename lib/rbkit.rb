@@ -1,4 +1,5 @@
 require "rbkit_tracer"
+require "rbkit/timer"
 
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
@@ -10,6 +11,10 @@ module Rbkit
       @request_port = request_port
       @profiler_thread = nil
       @stop_thread = false
+      @timer = Rbkit::Timer.new(5) do
+        data = GC.stat
+        Rbkit.send_hash_as_event(data, "gc_stats")
+      end
     end
 
     def start_server
@@ -20,6 +25,7 @@ module Rbkit
           incoming_request = Rbkit.poll_for_request
           process_incoming_request(incoming_request)
           # Let us sleep this thread for a bit, so as other things can run.
+          @timer.run
           sleep(0.05)
         end
       end
@@ -31,6 +37,8 @@ module Rbkit
         Rbkit.start_stat_tracing
       when "stop_memory_profile"
         Rbkit.stop_stat_tracing
+      when "trigger_gc"
+        GC.start
       when "heap_snapshot"
         puts "Not implemented"
       end

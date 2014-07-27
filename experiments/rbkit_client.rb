@@ -10,6 +10,7 @@ require "msgpack"
 # PUB / SUB topology
 
 Thread.abort_on_exception = true
+fl = File.open("foo.dat", "w")
 
 ctx = ZMQ::Context.new
 socket = ctx.socket(:SUB)
@@ -21,3 +22,4 @@ loop do
   unpacked_message = MessagePack.unpack(message)
   p unpacked_message
 end
+fl.close()

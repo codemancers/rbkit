@@ -8,6 +8,7 @@
 
 #include "rbkit_tracer.h"
 #include "object_graph.h"
+#include <sys/time.h>
 
 static const char *event_names[] = {
   "gc_start",
@@ -261,6 +262,82 @@ static VALUE stop_stat_server() {
   free(logger);
   return Qnil;
 }
+static void pack_value_object(VALUE value, msgpack_packer *packer) {
+  switch (TYPE(value)) {
+    case T_FIXNUM:
+      msgpack_pack_long(packer, FIX2LONG(value));
+      break;
+    case T_FLOAT:
+      msgpack_pack_double(packer, rb_num2dbl(value));
+      break;    
+    default:
+      ;
+      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
+      char *keyString = StringValueCStr(rubyString);
+      int keyLength = strlen(keyString);
+      
+      msgpack_pack_raw(packer, keyLength);
+      msgpack_pack_raw_body(packer, keyString, keyLength);
+      break;
+  }
+}
+
+static int hash_iterator(VALUE key, VALUE value, VALUE hash_arg) {
+  msgpack_packer *packer = (msgpack_packer *)hash_arg;
+
+  // pack the key
+  pack_value_object(key, packer);
+  // pack the value
+  pack_value_object(value, packer);  
+  return ST_CONTINUE;
+}
+
+
+static void pack_string(char *string, msgpack_packer *packer) {
+  int length = strlen(string);
+  
+  msgpack_pack_raw(packer, length);
+  msgpack_pack_raw_body(packer, string, length);
+}
+
+static void pack_timestamp(msgpack_packer *packer) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    
+    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
+    msgpack_pack_double(packer, time_in_milliseconds);
+}
+
+static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
+  
+  VALUE hash_object;
+  VALUE event_name;
+  
+  rb_scan_args(argc, argv, "20", &hash_object, &event_name);
+  
+  
+  int size = RHASH_SIZE(hash_object);
+  msgpack_sbuffer *buffer = msgpack_sbuffer_new();
+  msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+  
+  msgpack_pack_map(packer, 3);
+  
+  pack_string("event_type", packer);  
+  pack_value_object(event_name, packer);
+  
+  // pack timestamp  
+  pack_string("timestamp", packer);
+  pack_timestamp(packer);
+  
+  pack_string("payload", packer);
+  msgpack_pack_map(packer, size);
+    
+  rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
+  zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+  msgpack_sbuffer_destroy(buffer);
+  msgpack_packer_free(packer);
+  return Qnil;
+}
 
 static VALUE start_stat_tracing() {
   rb_tracepoint_enable(logger->newobj_trace);
@@ -359,4 +436,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
+  rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
 }
