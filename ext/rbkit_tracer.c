@@ -375,31 +375,26 @@ static VALUE send_objectspace_dump() {
     msgpack_pack_map(pk, 3);
 
     // Key1 : "object_id"
-    msgpack_pack_raw(pk, strlen("object_id"));
-    msgpack_pack_raw_body(pk, "object_id", strlen("object_id"));
-
+    pack_string("object_id", pk);
+    
     // Value1 : pointer address of object
     char * object_id;
     asprintf(&object_id, "%p", data->object_id);
-    msgpack_pack_raw(pk, strlen(object_id));
-    msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+    pack_string(object_id, pk);    
     free(object_id);
 
     // Key2 : "class_name"
-    msgpack_pack_raw(pk, strlen("class_name"));
-    msgpack_pack_raw_body(pk, "class_name", strlen("class_name"));
+    pack_string("class_name", pk);    
 
     // Value2 : Class name of object
     if(data->class_name == NULL) {
       msgpack_pack_nil(pk);
     } else {
-      msgpack_pack_raw(pk, strlen(data->class_name));
-      msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+      pack_string(data->class_name, pk);      
     }
 
     // Key3 : "references"
-    msgpack_pack_raw(pk, strlen("references"));
-    msgpack_pack_raw_body(pk, "references", strlen("class_name"));
+    pack_string("references", pk);    
 
     // Value3 : References held by the object
     msgpack_pack_array(pk, data->reference_count);
@@ -408,8 +403,7 @@ static VALUE send_objectspace_dump() {
       for(; count < data->reference_count; count++ ) {
         char * object_id;
         asprintf(&object_id, "%p", data->references[count]);
-        msgpack_pack_raw(pk, strlen(object_id));
-        msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+	pack_string(object_id, pk);        
       }
       free(data->references);
     }
