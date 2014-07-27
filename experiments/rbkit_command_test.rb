@@ -12,7 +12,7 @@ Thread.new do
   request_socket = ctx.socket(:REQ)
   request_socket.connect("tcp://127.0.0.1:5556")
   loop do
-    puts "Commands : [start_memory_profile, stop_memory_profile]"
+    puts "Commands : [start_memory_profile, stop_memory_profile, objectspace_snapshot]"
     command = gets.strip
     unless command.empty?
       request_socket.send(command)
