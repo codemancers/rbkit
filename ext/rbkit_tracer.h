@@ -38,10 +38,13 @@ struct gc_hooks {
   msgpack_packer *msgpacker;
 };
 
-struct event_info {
-  const char *event_name;
-  const char *class_name;
-  VALUE object_id;
-};
+char * tracer_string_recv(void *socket);
+int tracer_string_send(void *socket, const char *message);
+void pack_value_object(msgpack_packer *packer, VALUE value);
+void pack_string(msgpack_packer *packer, char *string);
+void pack_timestamp(msgpack_packer *packer);
+void pack_event_header(msgpack_packer *packer, const char *event_type);
+void pack_pointer(msgpack_packer *packer, VALUE object_id);
+
 
 #endif
