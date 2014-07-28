@@ -19,8 +19,4 @@ loop do
   message = socket.recv
   unpacked_message = MessagePack.unpack(message)
   p unpacked_message
-
-  request_socket.send("stop_memory_profile")
-  response = request_socket.recv
-  puts "received #{response}"
 end

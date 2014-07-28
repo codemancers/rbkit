@@ -8,6 +8,7 @@
 
 #include "rbkit_tracer.h"
 #include "object_graph.h"
+#include <sys/time.h>
 
 static const char *event_names[] = {
   "gc_start",
@@ -24,47 +25,31 @@ static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 
-static int event_message(struct event_info event_details, char **full_event) {
-  int message_size;
-
-  if (event_details.class_name != NULL && event_details.object_id != 0) {
-    message_size =
-      asprintf(full_event, "%s %s %p",
-               event_details.event_name,
-               event_details.class_name,
-               (void *)event_details.object_id);
-  } else if(event_details.class_name != NULL && event_details.object_id == 0) {
-    message_size = asprintf(full_event, "%s %s %d", event_details.event_name, event_details.class_name, 0);
-  } else {
-    message_size = asprintf(full_event, "%s", event_details.event_name);
-  }
-  return message_size;
-}
-
-static struct event_info get_event_info(int event_index, const char *class_name, VALUE object_id)
-{
-  struct event_info event_details = { event_names[event_index], class_name, object_id };
-  return event_details;
-}
-
-static void send_event(struct event_info event_details) {
-  char *full_event;
-  int message_size = event_message(event_details, &full_event);
-
-  msgpack_sbuffer_clear(logger->sbuf);
-  msgpack_pack_raw(logger->msgpacker, message_size);
-  msgpack_pack_raw_body(logger->msgpacker, full_event, message_size);
+// send whatever has been recorded so far as event
+static void send_event() {
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
-  free(full_event);
 }
+
+void pack_event_header(msgpack_packer* packer, const char *event_type)
+{
+  msgpack_pack_map(packer, 3);
+  pack_string(packer, "event_type");
+  pack_string(packer, event_type);
+  
+  pack_string(packer, "timestamp");
+  pack_timestamp(packer);
+}
+
 
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
-    struct event_info event_details = get_event_info(0, NULL, 0);
-    send_event(event_details);
+    msgpack_sbuffer_clear(logger->sbuf);
+    pack_event_header(logger->msgpacker, event_names[event_index]);
+    send_event();
   } else if (event_index == 2) {
-    struct event_info event_details = get_event_info(2, NULL, 0);
-    send_event(event_details);
+    msgpack_sbuffer_clear(logger->sbuf);
+    pack_event_header(logger->msgpacker, event_names[event_index]);
+    send_event();
   }
 }
 
@@ -126,30 +111,43 @@ create_gc_hooks(void)
   for (i=0; i<3; i++) rb_gc_register_mark_object(logger->hooks[i]);
 }
 
+void pack_pointer(msgpack_packer *packer, VALUE object_id) {
+  char *object_string;
+  asprintf(&object_string, "%p", object_id);
+  pack_string(packer, object_string);
+  free(object_string);
+}
+
 static void newobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
+  msgpack_sbuffer_clear(logger->sbuf);
+  pack_event_header(logger->msgpacker, event_names[3]);
+  pack_string(logger->msgpacker, "payload");
+  msgpack_pack_map(logger->msgpacker, 2);
+  pack_string(logger->msgpacker, "object_id");
+  pack_pointer(logger->msgpacker, obj);
+  pack_string(logger->msgpacker, "class");
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    struct event_info event_details = get_event_info(3, rb_class2name(klass), obj);
-    send_event(event_details);
+    pack_string(logger->msgpacker, rb_class2name(klass));
+
   } else {
-    struct event_info event_details = get_event_info(3, NULL, obj);
-    send_event(event_details);
+    msgpack_pack_nil(logger->msgpacker);
   }
+  send_event();
 }
 
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
-  VALUE klass = RBASIC_CLASS(obj);
-  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    struct event_info event_details = get_event_info(4, rb_class2name(klass), obj);
-    send_event(event_details);
-  } else {
-    struct event_info event_details = get_event_info(4, NULL, obj);
-    send_event(event_details);
-  }
+  msgpack_sbuffer_clear(logger->sbuf);
+  pack_event_header(logger->msgpacker, event_names[4]);
+  pack_string(logger->msgpacker, "payload");
+  msgpack_pack_map(logger->msgpacker, 1);
+  pack_string(logger->msgpacker, "object_id");
+  pack_pointer(logger->msgpacker, obj);
+  send_event();
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -165,7 +163,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
     if (default_pub_port < 1024 || default_pub_port > 65000)
       rb_raise(rb_eArgError, "invalid port value");
   }
-  
+
   if (!NIL_P(request_port)) {
     default_request_port = FIX2INT(request_port);
     if(default_request_port < 1024 || default_request_port > 65000)
@@ -198,7 +196,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   return Qnil;
 }
 
-static char * tracer_string_recv(void *socket) {
+char * tracer_string_recv(void *socket) {
   zmq_msg_t msg;
   int rc = zmq_msg_init(&msg);
   assert(rc == 0);
@@ -214,7 +212,7 @@ static char * tracer_string_recv(void *socket) {
 }
 
 
-static int tracer_string_send(void *socket, const char *message) {
+int tracer_string_send(void *socket, const char *message) {
    int size = zmq_send (socket, message, strlen (message), 0);
    return size;
 }
@@ -262,6 +260,73 @@ static VALUE stop_stat_server() {
   return Qnil;
 }
 
+void pack_value_object(msgpack_packer *packer, VALUE value) {
+  switch (TYPE(value)) {
+    case T_FIXNUM:
+      msgpack_pack_long(packer, FIX2LONG(value));
+      break;
+    case T_FLOAT:
+      msgpack_pack_double(packer, rb_num2dbl(value));
+      break;    
+    default:
+      ;
+      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
+      char *keyString = StringValueCStr(rubyString);
+      int keyLength = strlen(keyString);
+      
+      msgpack_pack_raw(packer, keyLength);
+      msgpack_pack_raw_body(packer, keyString, keyLength);
+      break;
+  }
+}
+
+static int hash_iterator(VALUE key, VALUE value, VALUE hash_arg) {
+  msgpack_packer *packer = (msgpack_packer *)hash_arg;
+
+  // pack the key
+  pack_value_object(packer,key);
+  // pack the value
+  pack_value_object(packer, value);
+  return ST_CONTINUE;
+}
+
+
+void pack_string(msgpack_packer *packer, char *string) {
+  int length = strlen(string);
+  
+  msgpack_pack_raw(packer, length);
+  msgpack_pack_raw_body(packer, string, length);
+}
+
+void pack_timestamp(msgpack_packer *packer) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    
+    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
+    msgpack_pack_double(packer, time_in_milliseconds);
+}
+
+static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
+  VALUE hash_object;
+  VALUE event_name;
+
+  rb_scan_args(argc, argv, "20", &hash_object, &event_name);
+
+  int size = RHASH_SIZE(hash_object);
+  msgpack_sbuffer *buffer = msgpack_sbuffer_new();
+  msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+  pack_event_header(packer, StringValueCStr(event_name));
+
+  pack_string(packer, "payload");
+  msgpack_pack_map(packer, size);
+
+  rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
+  zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+  msgpack_sbuffer_destroy(buffer);
+  msgpack_packer_free(packer);
+  return Qnil;
+}
+
 static VALUE start_stat_tracing() {
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
@@ -298,31 +363,26 @@ static VALUE send_objectspace_dump() {
     msgpack_pack_map(pk, 3);
 
     // Key1 : "object_id"
-    msgpack_pack_raw(pk, strlen("object_id"));
-    msgpack_pack_raw_body(pk, "object_id", strlen("object_id"));
-
+    pack_string(pk, "object_id");
+    
     // Value1 : pointer address of object
     char * object_id;
     asprintf(&object_id, "%p", data->object_id);
-    msgpack_pack_raw(pk, strlen(object_id));
-    msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+    pack_string(pk, object_id); 
     free(object_id);
 
     // Key2 : "class_name"
-    msgpack_pack_raw(pk, strlen("class_name"));
-    msgpack_pack_raw_body(pk, "class_name", strlen("class_name"));
+    pack_string(pk, "class_name");
 
     // Value2 : Class name of object
     if(data->class_name == NULL) {
       msgpack_pack_nil(pk);
     } else {
-      msgpack_pack_raw(pk, strlen(data->class_name));
-      msgpack_pack_raw_body(pk, data->class_name, strlen(data->class_name));
+      pack_string(pk, data->class_name);
     }
 
     // Key3 : "references"
-    msgpack_pack_raw(pk, strlen("references"));
-    msgpack_pack_raw_body(pk, "references", strlen("class_name"));
+    pack_string(pk, "references");
 
     // Value3 : References held by the object
     msgpack_pack_array(pk, data->reference_count);
@@ -331,8 +391,7 @@ static VALUE send_objectspace_dump() {
       for(; count < data->reference_count; count++ ) {
         char * object_id;
         asprintf(&object_id, "%p", data->references[count]);
-        msgpack_pack_raw(pk, strlen(object_id));
-        msgpack_pack_raw_body(pk, object_id, strlen(object_id));
+	pack_string(pk, object_id);
       }
       free(data->references);
     }
@@ -359,4 +418,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
+  rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
 }

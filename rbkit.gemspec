@@ -29,4 +29,5 @@ Gem::Specification.new do |s|
   s.summary = %q{Ruby profiler for rest of us}
   s.add_development_dependency("rspec")
   s.add_development_dependency("rake")
+  s.add_development_dependency("simplecov")
 end
