@@ -272,10 +272,7 @@ void pack_value_object(msgpack_packer *packer, VALUE value) {
       ;
       VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
       char *keyString = StringValueCStr(rubyString);
-      int keyLength = strlen(keyString);
-      
-      msgpack_pack_raw(packer, keyLength);
-      msgpack_pack_raw_body(packer, keyString, keyLength);
+      pack_string(packer, keyString);
       break;
   }
 }
