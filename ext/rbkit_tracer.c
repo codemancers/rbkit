@@ -30,9 +30,9 @@ static void send_event() {
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
 }
 
-void pack_event_header(msgpack_packer* packer, const char *event_type)
+void pack_event_header(msgpack_packer* packer, const char *event_type, int map_size)
 {
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, map_size);
   pack_string(packer, "event_type");
   pack_string(packer, event_type);
   
@@ -44,11 +44,11 @@ void pack_event_header(msgpack_packer* packer, const char *event_type)
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
     msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index]);
+    pack_event_header(logger->msgpacker, event_names[event_index], 2);
     send_event();
   } else if (event_index == 2) {
     msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index]);
+    pack_event_header(logger->msgpacker, event_names[event_index], 2);
     send_event();
   }
 }
@@ -123,7 +123,7 @@ static void newobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[3]);
+  pack_event_header(logger->msgpacker, event_names[3], 3);
   pack_string(logger->msgpacker, "payload");
   msgpack_pack_map(logger->msgpacker, 2);
   pack_string(logger->msgpacker, "object_id");
@@ -142,7 +142,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
   msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[4]);
+  pack_event_header(logger->msgpacker, event_names[4], 3);
   pack_string(logger->msgpacker, "payload");
   msgpack_pack_map(logger->msgpacker, 1);
   pack_string(logger->msgpacker, "object_id");
@@ -312,7 +312,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   int size = RHASH_SIZE(hash_object);
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
-  pack_event_header(packer, StringValueCStr(event_name));
+  pack_event_header(packer, StringValueCStr(event_name), 3);
 
   pack_string(packer, "payload");
   msgpack_pack_map(packer, size);
