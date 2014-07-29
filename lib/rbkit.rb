@@ -39,8 +39,8 @@ module Rbkit
         Rbkit.stop_stat_tracing
       when "trigger_gc"
         GC.start
-      when "heap_snapshot"
-        puts "Not implemented"
+      when "objectspace_snapshot"
+        Rbkit.send_objectspace_dump
       end
     end
 
@@ -56,9 +56,5 @@ module Rbkit
       @profiler.stop_thread = true
       @profiler.stop_server
     end
-  end
-
-  def self.dump_objects
-    send_objectspace_dump
   end
 end
