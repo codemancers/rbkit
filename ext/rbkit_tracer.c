@@ -171,6 +171,11 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   }
 
   logger = get_trace_logger();
+  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
+  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
+  rb_gc_register_mark_object(logger->newobj_trace);
+  rb_gc_register_mark_object(logger->freeobj_trace);
+  create_gc_hooks();
 
   char zmq_endpoint[14];
   sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
@@ -189,10 +194,6 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
-  
-  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
-  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
-  create_gc_hooks();
   return Qnil;
 }
 
