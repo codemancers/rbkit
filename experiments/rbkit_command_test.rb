@@ -1,19 +1,28 @@
 require 'zmq'
-require "msgpack"
+require 'msgpack'
+require 'tempfile'
 
 Thread.abort_on_exception = true
 
+
+commands = [
+  'start_memory_profile',
+  'stop_memory_profile',
+  'objectspace_snapshot',
+  'trigger_gc'
+]
+
 ctx = ZMQ::Context.new
-socket = ctx.socket(:SUB)
-socket.subscribe("")
-socket.connect("tcp://127.0.0.1:5555")
 
 Thread.new do
   request_socket = ctx.socket(:REQ)
   request_socket.connect("tcp://127.0.0.1:5556")
   loop do
-    puts "Commands : [start_memory_profile, stop_memory_profile, objectspace_snapshot]"
-    command = gets.strip
+    puts "Available commands :"
+    commands.each_with_index do |c, i|
+      puts "#{i+1}. #{c}"
+    end
+    command = commands[gets.strip.to_i - 1] rescue ''
     unless command.empty?
       request_socket.send(command)
       puts "sent #{command}"
@@ -23,10 +32,19 @@ Thread.new do
   end
 end
 
-File.open("/tmp/foo.dat", "a") do |fl|
+socket = ctx.socket(:SUB)
+socket.subscribe("")
+socket.connect("tcp://127.0.0.1:5555")
+
+f = Tempfile.new('rbkit')
+puts "Writing output to file #{f.path}"
+begin
   loop do
     message = socket.recv
     unpacked_message = MessagePack.unpack(message)
-    fl.puts unpacked_message
+    f.puts unpacked_message
   end
+ensure
+  f.close
+  f.unlink
 end
