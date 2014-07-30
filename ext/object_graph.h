@@ -7,7 +7,7 @@ struct ObjectData {
   void ** references;
   size_t reference_count;
   char * file;
-  int line;
+  unsigned long line;
   struct ObjectData *next;
 };
 
@@ -18,4 +18,12 @@ struct ObjectDump {
 };
 
 struct ObjectDump * get_object_dump();
+
+struct allocation_info {
+  const char *path;
+  unsigned long line;
+  const char *class_path;
+  VALUE method_id;
+  size_t generation;
+};
 #endif

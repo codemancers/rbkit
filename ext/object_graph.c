@@ -1,6 +1,7 @@
 #include <ruby.h>
 #include "object_graph.h"
 
+static st_table * object_table;
 struct ObjectData * initialize_object_data()
 {
   struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
@@ -8,6 +9,8 @@ struct ObjectData * initialize_object_data()
   data->references = NULL;
   data->class_name = NULL;
   data->reference_count = 0;
+  data->file = NULL;
+  data->line = 0;
   return data;
 }
 
@@ -63,6 +66,16 @@ static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
   //Set references
   rb_objspace_reachable_objects_from(obj, reachable_object_i, data);
 
+  //Set file path and line no where object is defined
+  struct allocation_info *info;
+  if (st_lookup(object_table, obj, (st_data_t *)&info)) {
+    if(info) {
+      data->file = info->path;
+      data->line = info->line;
+    }
+  }
+
+  //Put it in the linked list
   if(dump->first == NULL) {
     dump->first = data;
     dump->last = data;
@@ -100,7 +113,6 @@ static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
   return 0;
 }
 
-
 static void collect_root_objects(struct ObjectDump * dump) {
   rb_objspace_reachable_objects_from_root(root_object_i, (void *)dump);
 }
@@ -109,7 +121,8 @@ static void collect_heap_objects(struct ObjectDump * dump) {
   rb_objspace_each_objects(heap_obj_i, (void *)dump);
 }
 
-struct ObjectDump * get_object_dump() {
+struct ObjectDump * get_object_dump(st_table * existing_object_table) {
+  object_table = existing_object_table;
   struct ObjectDump * dump = (struct ObjectDump *) malloc(sizeof(struct ObjectDump));
   dump->first = NULL;
   dump->last = NULL;
