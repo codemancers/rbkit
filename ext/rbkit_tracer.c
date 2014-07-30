@@ -325,9 +325,26 @@ static VALUE stop_stat_tracing() {
   return Qnil;
 }
 
+
+static int free_keys_i(st_data_t key, st_data_t value, void *data) {
+  ruby_xfree((void *)key);
+  return ST_CONTINUE;
+}
+
+static int free_values_i(st_data_t key, st_data_t value, void *data) {
+  ruby_xfree((void *)value);
+  return ST_CONTINUE;
+}
+
 static VALUE stop_stat_server() {
   if (logger->enabled == Qtrue)
     stop_stat_tracing();
+
+  // Clear object_table which holds object allocation info
+  st_foreach(logger->object_table, free_values_i, 0);
+  st_clear(logger->object_table);
+  st_foreach(logger->str_table, free_keys_i, 0);
+  st_clear(logger->str_table);
 
   msgpack_sbuffer_destroy(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
