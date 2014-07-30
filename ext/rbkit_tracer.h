@@ -43,7 +43,7 @@ int tracer_string_send(void *socket, const char *message);
 void pack_value_object(msgpack_packer *packer, VALUE value);
 void pack_string(msgpack_packer *packer, char *string);
 void pack_timestamp(msgpack_packer *packer);
-void pack_event_header(msgpack_packer *packer, const char *event_type);
+void pack_event_header(msgpack_packer *packer, const char *event_type, int map_size);
 void pack_pointer(msgpack_packer *packer, VALUE object_id);
 
 

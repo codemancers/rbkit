@@ -30,9 +30,9 @@ static void send_event() {
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
 }
 
-void pack_event_header(msgpack_packer* packer, const char *event_type)
+void pack_event_header(msgpack_packer* packer, const char *event_type, int map_size)
 {
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, map_size);
   pack_string(packer, "event_type");
   pack_string(packer, event_type);
   
@@ -44,11 +44,11 @@ void pack_event_header(msgpack_packer* packer, const char *event_type)
 static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
     msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index]);
+    pack_event_header(logger->msgpacker, event_names[event_index], 2);
     send_event();
   } else if (event_index == 2) {
     msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index]);
+    pack_event_header(logger->msgpacker, event_names[event_index], 2);
     send_event();
   }
 }
@@ -123,7 +123,7 @@ static void newobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[3]);
+  pack_event_header(logger->msgpacker, event_names[3], 3);
   pack_string(logger->msgpacker, "payload");
   msgpack_pack_map(logger->msgpacker, 2);
   pack_string(logger->msgpacker, "object_id");
@@ -142,7 +142,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
   msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[4]);
+  pack_event_header(logger->msgpacker, event_names[4], 3);
   pack_string(logger->msgpacker, "payload");
   msgpack_pack_map(logger->msgpacker, 1);
   pack_string(logger->msgpacker, "object_id");
@@ -171,6 +171,11 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   }
 
   logger = get_trace_logger();
+  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
+  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
+  rb_gc_register_mark_object(logger->newobj_trace);
+  rb_gc_register_mark_object(logger->freeobj_trace);
+  create_gc_hooks();
 
   char zmq_endpoint[14];
   sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
@@ -189,10 +194,6 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
-  
-  logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
-  logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
-  create_gc_hooks();
   return Qnil;
 }
 
@@ -272,10 +273,7 @@ void pack_value_object(msgpack_packer *packer, VALUE value) {
       ;
       VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
       char *keyString = StringValueCStr(rubyString);
-      int keyLength = strlen(keyString);
-      
-      msgpack_pack_raw(packer, keyLength);
-      msgpack_pack_raw_body(packer, keyString, keyLength);
+      pack_string(packer, keyString);
       break;
   }
 }
@@ -315,7 +313,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   int size = RHASH_SIZE(hash_object);
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
-  pack_event_header(packer, StringValueCStr(event_name));
+  pack_event_header(packer, StringValueCStr(event_name), 3);
 
   pack_string(packer, "payload");
   msgpack_pack_map(packer, size);
@@ -343,7 +341,8 @@ static VALUE send_objectspace_dump() {
   msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
   struct ObjectDump * dump = get_object_dump();
-
+  pack_event_header(pk, "object_space_dump", 3);
+  pack_string(pk, "payload");
   // Set size of array to hold all objects
   msgpack_pack_array(pk, dump->size);
 
