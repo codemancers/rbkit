@@ -25,3 +25,8 @@ bundle exec rake compile
 * [X] Fix memory leak around event names.
 * [X] Allow user to specify port where profiler should start.
 * [X] Implement support for returning object classes along with event names.
+* [X] Send objectspace dump over zmq
+* [X] Client should be able to trigger GC
+* [X] Use PUB-SUB socket pair for sending events from server
+* [X] Use REQ-REP socket pair to accept commands from client
+* [ ] Collect file and line no of object allocation
