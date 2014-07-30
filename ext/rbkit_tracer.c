@@ -341,7 +341,8 @@ static VALUE send_objectspace_dump() {
   msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
   struct ObjectDump * dump = get_object_dump();
-
+  pack_event_header(pk, "object_space_dump", 3);
+  pack_string(pk, "payload");
   // Set size of array to hold all objects
   msgpack_pack_array(pk, dump->size);
 

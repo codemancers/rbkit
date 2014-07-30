@@ -23,8 +23,10 @@ Thread.new do
   end
 end
 
-loop do
-  message = socket.recv
-  unpacked_message = MessagePack.unpack(message)
-  puts "received #{unpacked_message.inspect}"
+File.open("/tmp/foo.dat", "a") do |fl|
+  loop do
+    message = socket.recv
+    unpacked_message = MessagePack.unpack(message)
+    fl.puts unpacked_message
+  end
 end
