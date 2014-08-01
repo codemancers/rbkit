@@ -28,6 +28,15 @@ static void dump_root_object(VALUE obj, const char* category, struct ObjectDump 
     data->class_name = category ;
   }
 
+  //Set file path and line no where object is defined
+  struct allocation_info *info;
+  if (st_lookup(object_table, obj, (st_data_t *)&info)) {
+    if(info) {
+      data->file = info->path;
+      data->line = info->line;
+    }
+  }
+
   if(dump->first == NULL) {
     dump->first = data;
     dump->last = data;
