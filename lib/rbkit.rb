@@ -17,9 +17,10 @@ module Rbkit
       end
     end
 
-    def start_server
+    def start_server(enable_profiling: false)
       @profiler_thread = Thread.new do
-        Rbkit.start_server(pub_port, request_port)
+        Rbkit.start_stat_server(pub_port, request_port)
+        Rbkit.start_stat_tracing if enable_profiling
         loop do
           break if @stop_thread
           incoming_request = Rbkit.poll_for_request
@@ -49,7 +50,23 @@ module Rbkit
     end
   end
 
+  ########### Rbkit API ###########
+
+  # Starts the server and enables memory profiling tracepoints
   def self.start_profiling(pub_port = nil, request_port = nil)
+    @profiler = Rbkit::Profiler.new(pub_port, request_port)
+    @profiler.start_server(enable_profiling: true)
+    at_exit do
+      @profiler.stop_thread = true
+      @profiler.stop_server
+    end
+  end
+
+  # Just starts the server and waits for instructions.
+  # The client needs to connect to the request_port and send
+  # commands over the wire. The client also needs to connect
+  # to the pub_port and subscribe to the responses from the server.
+  def self.start_server(pub_port = nil, request_port = nil)
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server
     at_exit do
