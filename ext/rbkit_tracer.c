@@ -117,7 +117,13 @@ void pack_pointer(msgpack_packer *packer, VALUE object_id) {
   pack_string(packer, object_string);
   free(object_string);
 }
-
+/*
+ * make_unique_str helps to reuse memory by allocating memory for a string
+ * only once and keeping track of how many times that string is referenced.
+ * It does so by creating a map of strings to their no of references.
+ * A new map is created for a string on its first use, and for further usages
+ * the reference count is incremented.
+ */
 static const char * make_unique_str(st_table *tbl, const char *str, long len) {
   if (!str) {
     return NULL;
@@ -140,6 +146,11 @@ static const char * make_unique_str(st_table *tbl, const char *str, long len) {
   }
 }
 
+/*
+ * Used to free allocation of string when it's not referenced anymore.
+ * Decrements the reference count of a string if it's still used, else
+ * the map is removed completely.
+ */
 static void delete_unique_str(st_table *tbl, const char *str) {
   if (str) {
     st_data_t n;
