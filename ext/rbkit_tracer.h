@@ -8,20 +8,6 @@
 #include "zmq.h"
 #include "msgpack.h"
 
-struct  obj_allocation_info
-{
-  int living;
-  VALUE flags;
-  VALUE klass;
-
-  /* allocation info */
-  const char *path;
-  unsigned long line;
-  const char *class_path;
-  VALUE mid;
-  size_t generation;
-};
-
 // Structure is used to store profiling data
 struct gc_hooks {
   VALUE hooks[3];

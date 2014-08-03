@@ -117,30 +117,118 @@ void pack_pointer(msgpack_packer *packer, VALUE object_id) {
   pack_string(packer, object_string);
   free(object_string);
 }
+/*
+ * make_unique_str helps to reuse memory by allocating memory for a string
+ * only once and keeping track of how many times that string is referenced.
+ * It does so by creating a map of strings to their no of references.
+ * A new map is created for a string on its first use, and for further usages
+ * the reference count is incremented.
+ */
+static const char * make_unique_str(st_table *tbl, const char *str, long len) {
+  if (!str) {
+    return NULL;
+  }
+  else {
+    st_data_t n;
+    char *result;
 
+    if (st_lookup(tbl, (st_data_t)str, &n)) {
+      st_insert(tbl, (st_data_t)str, n+1);
+      st_get_key(tbl, (st_data_t)str, (st_data_t *)&result);
+    }
+    else {
+      result = (char *)ruby_xmalloc(len+1);
+      strncpy(result, str, len);
+      result[len] = 0;
+      st_add_direct(tbl, (st_data_t)result, 1);
+    }
+    return result;
+  }
+}
+
+/*
+ * Used to free allocation of string when it's not referenced anymore.
+ * Decrements the reference count of a string if it's still used, else
+ * the map is removed completely.
+ */
+static void delete_unique_str(st_table *tbl, const char *str) {
+  if (str) {
+    st_data_t n;
+
+    st_lookup(tbl, (st_data_t)str, &n);
+    if (n == 1) {
+      st_delete(tbl, (st_data_t *)&str, 0);
+      ruby_xfree((char *)str);
+    }
+    else {
+      st_insert(tbl, (st_data_t)str, n-1);
+    }
+  }
+}
+
+// Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
+  struct gc_hooks * arg = (struct gc_hooks *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
-  msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[3], 3);
-  pack_string(logger->msgpacker, "payload");
-  msgpack_pack_map(logger->msgpacker, 2);
-  pack_string(logger->msgpacker, "object_id");
-  pack_pointer(logger->msgpacker, obj);
-  pack_string(logger->msgpacker, "class");
+  VALUE path = rb_tracearg_path(tparg);
+  VALUE line = rb_tracearg_lineno(tparg);
+  VALUE method_id = rb_tracearg_method_id(tparg);
+  VALUE defined_klass = rb_tracearg_defined_class(tparg);
+
+  struct allocation_info *info;
+  const char *path_cstr = RTEST(path) ? make_unique_str(arg->str_table, RSTRING_PTR(path), RSTRING_LEN(path)) : 0;
+  VALUE class_path = (RTEST(defined_klass) && !OBJ_FROZEN(defined_klass)) ? rb_class_path_cached(defined_klass) : Qnil;
+  const char *class_path_cstr = RTEST(class_path) ? make_unique_str(arg->str_table, RSTRING_PTR(class_path), RSTRING_LEN(class_path)) : 0;
+
+  if (st_lookup(arg->object_table, (st_data_t)obj, (st_data_t *)&info)) {
+    /* reuse info */
+    delete_unique_str(arg->str_table, info->path);
+    delete_unique_str(arg->str_table, info->class_path);
+  }
+  else {
+    info = (struct allocation_info *)ruby_xmalloc(sizeof(struct allocation_info));
+  }
+
+  info->path = path_cstr;
+  info->line = NUM2INT(line);
+  info->method_id = method_id;
+  info->class_path = class_path_cstr;
+  info->generation = rb_gc_count();
+  st_insert(arg->object_table, (st_data_t)obj, (st_data_t)info);
+
+  msgpack_sbuffer_clear(arg->sbuf);
+  pack_event_header(arg->msgpacker, event_names[3], 3);
+  pack_string(arg->msgpacker, "payload");
+  msgpack_pack_map(arg->msgpacker, 2);
+  pack_string(arg->msgpacker, "object_id");
+  pack_pointer(arg->msgpacker, obj);
+  pack_string(arg->msgpacker, "class");
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    pack_string(logger->msgpacker, rb_class2name(klass));
+    pack_string(arg->msgpacker, rb_class2name(klass));
 
   } else {
-    msgpack_pack_nil(logger->msgpacker);
+    msgpack_pack_nil(arg->msgpacker);
   }
   send_event();
 }
 
+// Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
+
+  struct gc_hooks *arg = (struct gc_hooks *)data;
+  struct allocation_info *info;
+
+  if (st_lookup(arg->object_table, (st_data_t)obj, (st_data_t *)&info)) {
+    st_delete(arg->object_table, (st_data_t *)&obj, (st_data_t *)&info);
+    delete_unique_str(arg->str_table, info->path);
+    delete_unique_str(arg->str_table, info->class_path);
+    ruby_xfree(info);
+  }
+
   msgpack_sbuffer_clear(logger->sbuf);
   pack_event_header(logger->msgpacker, event_names[4], 3);
   pack_string(logger->msgpacker, "payload");
@@ -248,9 +336,26 @@ static VALUE stop_stat_tracing() {
   return Qnil;
 }
 
+
+static int free_keys_i(st_data_t key, st_data_t value, void *data) {
+  ruby_xfree((void *)key);
+  return ST_CONTINUE;
+}
+
+static int free_values_i(st_data_t key, st_data_t value, void *data) {
+  ruby_xfree((void *)value);
+  return ST_CONTINUE;
+}
+
 static VALUE stop_stat_server() {
   if (logger->enabled == Qtrue)
     stop_stat_tracing();
+
+  // Clear object_table which holds object allocation info
+  st_foreach(logger->object_table, free_values_i, 0);
+  st_clear(logger->object_table);
+  st_foreach(logger->str_table, free_keys_i, 0);
+  st_clear(logger->str_table);
 
   msgpack_sbuffer_destroy(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
@@ -290,10 +395,13 @@ static int hash_iterator(VALUE key, VALUE value, VALUE hash_arg) {
 
 
 void pack_string(msgpack_packer *packer, char *string) {
-  int length = strlen(string);
-  
-  msgpack_pack_raw(packer, length);
-  msgpack_pack_raw_body(packer, string, length);
+  if(string == NULL) {
+    msgpack_pack_nil(packer);
+  } else {
+    int length = strlen(string);
+    msgpack_pack_raw(packer, length);
+    msgpack_pack_raw_body(packer, string, length);
+  }
 }
 
 void pack_timestamp(msgpack_packer *packer) {
@@ -340,7 +448,7 @@ static VALUE send_objectspace_dump() {
   msgpack_sbuffer* buffer = msgpack_sbuffer_new();
   msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  struct ObjectDump * dump = get_object_dump();
+  struct ObjectDump * dump = get_object_dump(logger->object_table);
   pack_event_header(pk, "object_space_dump", 3);
   pack_string(pk, "payload");
   // Set size of array to hold all objects
@@ -352,18 +460,19 @@ static VALUE send_objectspace_dump() {
     /* ObjectData is a map that looks like this :
      * {
      *   object_id: <OBJECT_ID_IN_HEX>,
-     *   class_name: <CLASS_NAME>,
+     *   class: <CLASS_NAME>,
      *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
-     *   TODO: file: <FILE_PATH>,
-     *   TODO: line: <LINE_NO>
+     *   file: <FILE_PATH>,
+     *   line: <LINE_NO>
      * }
      */
 
-    msgpack_pack_map(pk, 3);
+
+    msgpack_pack_map(pk, 5);
 
     // Key1 : "object_id"
     pack_string(pk, "object_id");
-    
+
     // Value1 : pointer address of object
     char * object_id;
     asprintf(&object_id, "%p", data->object_id);
@@ -390,10 +499,25 @@ static VALUE send_objectspace_dump() {
       for(; count < data->reference_count; count++ ) {
         char * object_id;
         asprintf(&object_id, "%p", data->references[count]);
-	pack_string(pk, object_id);
+        pack_string(pk, object_id);
       }
       free(data->references);
     }
+
+    // Key4 : "file"
+    pack_string(pk, "file");
+
+    // Value4 : File path where object is defined
+    pack_string(pk, data->file);
+
+    // Key5 : "references"
+    pack_string(pk, "line");
+
+    // Value5 : Line no where object is defined
+    if(data->line == 0)
+      msgpack_pack_nil(pk);
+    else
+      msgpack_pack_unsigned_long(pk, data->line);
 
     free(data);
   }
