@@ -15,6 +15,7 @@ struct ObjectDump {
   size_t size;
   struct ObjectData *first;
   struct ObjectData *last;
+  st_table * object_table;
 };
 
 struct ObjectDump * get_object_dump();

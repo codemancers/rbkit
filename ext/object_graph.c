@@ -1,7 +1,6 @@
 #include <ruby.h>
 #include "object_graph.h"
 
-static st_table * object_table;
 struct ObjectData * initialize_object_data()
 {
   struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
@@ -30,7 +29,7 @@ static void dump_root_object(VALUE obj, const char* category, struct ObjectDump 
 
   //Set file path and line no where object is defined
   struct allocation_info *info;
-  if (st_lookup(object_table, obj, (st_data_t *)&info)) {
+  if (st_lookup(dump->object_table, obj, (st_data_t *)&info)) {
     if(info) {
       data->file = info->path;
       data->line = info->line;
@@ -77,7 +76,7 @@ static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
 
   //Set file path and line no where object is defined
   struct allocation_info *info;
-  if (st_lookup(object_table, obj, (st_data_t *)&info)) {
+  if (st_lookup(dump->object_table, obj, (st_data_t *)&info)) {
     if(info) {
       data->file = info->path;
       data->line = info->line;
@@ -130,9 +129,9 @@ static void collect_heap_objects(struct ObjectDump * dump) {
   rb_objspace_each_objects(heap_obj_i, (void *)dump);
 }
 
-struct ObjectDump * get_object_dump(st_table * existing_object_table) {
-  object_table = existing_object_table;
+struct ObjectDump * get_object_dump(st_table * object_table) {
   struct ObjectDump * dump = (struct ObjectDump *) malloc(sizeof(struct ObjectDump));
+  dump->object_table = object_table;
   dump->first = NULL;
   dump->last = NULL;
   collect_root_objects(dump);
