@@ -434,6 +434,8 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 }
 
 static VALUE start_stat_tracing() {
+  if (logger->enabled == Qtrue)
+    return Qnil;
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
   int i = 0;
