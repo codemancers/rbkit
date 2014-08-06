@@ -29,4 +29,4 @@ bundle exec rake compile
 * [X] Client should be able to trigger GC
 * [X] Use PUB-SUB socket pair for sending events from server
 * [X] Use REQ-REP socket pair to accept commands from client
-* [ ] Collect file and line no of object allocation
+* [X] Collect file and line no of object allocation
