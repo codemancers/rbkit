@@ -538,7 +538,7 @@ static VALUE send_objectspace_dump() {
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
-  rb_define_module_function(objectStatsModule, "stop_server", stop_stat_server, 0);
+  rb_define_module_function(objectStatsModule, "stop_stat_server", stop_stat_server, 0);
   rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
   rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);

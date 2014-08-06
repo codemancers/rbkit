@@ -11,6 +11,7 @@ module Rbkit
       @request_port = request_port
       @profiler_thread = nil
       @stop_thread = false
+      @server_running = false
       @timer = Rbkit::Timer.new(5) do
         data = GC.stat
         Rbkit.send_hash_as_event(data, "gc_stats")
@@ -18,6 +19,7 @@ module Rbkit
     end
 
     def start_server(enable_profiling: false)
+      return if @server_running
       @profiler_thread = Thread.new do
         Rbkit.start_stat_server(pub_port, request_port)
         Rbkit.start_stat_tracing if enable_profiling
@@ -30,6 +32,7 @@ module Rbkit
           sleep(0.05)
         end
       end
+      @server_running = true
     end
 
     def process_incoming_request(incoming_request)
@@ -46,7 +49,9 @@ module Rbkit
     end
 
     def stop_server
-      Rbkit.stop_server
+      return if !@server_running
+      Rbkit.stop_stat_server
+      @server_running = false
     end
   end
 
@@ -57,8 +62,7 @@ module Rbkit
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server(enable_profiling: true)
     at_exit do
-      @profiler.stop_thread = true
-      @profiler.stop_server
+      self.stop_server
     end
   end
 
@@ -70,8 +74,12 @@ module Rbkit
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server
     at_exit do
-      @profiler.stop_thread = true
-      @profiler.stop_server
+      self.stop_server
     end
+  end
+
+  def self.stop_server
+    @profiler.stop_thread = true
+    @profiler.stop_server
   end
 end
