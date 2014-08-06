@@ -4,7 +4,7 @@ require "rbkit/timer"
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
   class Profiler
-    attr_accessor :pub_port, :request_port, :stop_thread
+    attr_accessor :pub_port, :request_port
 
     def initialize(pub_port, request_port)
       @pub_port = pub_port
@@ -53,6 +53,11 @@ module Rbkit
       Rbkit.stop_stat_server
       @server_running = false
     end
+
+    def make_clean_exit
+      @stop_thread = true
+      stop_server
+    end
   end
 
   ########### Rbkit API ###########
@@ -78,8 +83,8 @@ module Rbkit
     end
   end
 
+  # Stops profiling and brings down the rbkit server if it's running
   def self.stop_server
-    @profiler.stop_thread = true
-    @profiler.stop_server
+    @profiler.make_clean_exit
   end
 end
