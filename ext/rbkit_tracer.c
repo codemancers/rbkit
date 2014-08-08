@@ -25,9 +25,43 @@ static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 
+
+// comment out this #define to stop dumping data to file
+#define DUMP_MSBPACK_OBJECTS
+#ifdef DUMP_MSBPACK_OBJECTS
+
+// for debugging purposes
+static void dump_data_to_file(size_t size, const char* data)
+{
+    static unsigned long int id = 0;
+    char  filename[40] = "";
+    FILE* fp = NULL;
+
+    if (100000 == id) {
+        return;
+    }
+
+    strcpy(filename, "/tmp/rbkitevents/");
+    sprintf(&filename[17], "%05lu", id);
+
+    fp = fopen(filename, "w");
+    fwrite(data, 1, size, fp);
+    fclose(fp);
+
+    ++id;
+}
+
+#else // DUMP_MSBPACK_OBJECTS
+
+// inline function, will be optimzed out.
+static inline void dump_data_to_file(const char*, size_t) {}
+
+#endif
+
 // send whatever has been recorded so far as event
 static void send_event() {
   zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
+  dump_data_to_file(logger->sbuf->size, logger->sbuf->data);
 }
 
 void pack_event_header(msgpack_packer* packer, const char *event_type, int map_size)
@@ -428,6 +462,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 
   rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
   zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+  dump_data_to_file(buffer->size, buffer->data);
   msgpack_sbuffer_destroy(buffer);
   msgpack_packer_free(packer);
   return Qnil;

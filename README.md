@@ -30,3 +30,20 @@ bundle exec rake compile
 * [X] Use PUB-SUB socket pair for sending events from server
 * [X] Use REQ-REP socket pair to accept commands from client
 * [X] Collect file and line no of object allocation
+
+
+4. Dumping events to a file
+
+Sometimes its useful to dump events to file so that we can write tests on
+them. Here is a way to do it.
+
+```sh
+  # enable macro DUMP_MSBPACK_OBJECTS in rbkit_tracer.c file
+  # and recompile.
+
+  # make a directory /tmp/rbkitevents
+  $ mkdir -p /tmp/rbkitevents
+
+  # simply run ruby with rbkit, and you can see dumps
+  $ ruby experiments/using_rbkit.rb
+```
