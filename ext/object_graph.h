@@ -8,6 +8,7 @@ struct ObjectData {
   size_t reference_count;
   char * file;
   unsigned long line;
+  size_t size;
   struct ObjectData *next;
 };
 

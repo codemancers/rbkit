@@ -465,12 +465,13 @@ static VALUE send_objectspace_dump() {
      *   class: <CLASS_NAME>,
      *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
      *   file: <FILE_PATH>,
-     *   line: <LINE_NO>
+     *   line: <LINE_NO>,
+     *   size: <SIZE>
      * }
      */
 
 
-    msgpack_pack_map(pk, 5);
+    msgpack_pack_map(pk, 6);
 
     // Key1 : "object_id"
     pack_string(pk, "object_id");
@@ -512,7 +513,7 @@ static VALUE send_objectspace_dump() {
     // Value4 : File path where object is defined
     pack_string(pk, data->file);
 
-    // Key5 : "references"
+    // Key5 : "line"
     pack_string(pk, "line");
 
     // Value5 : Line no where object is defined
@@ -520,6 +521,15 @@ static VALUE send_objectspace_dump() {
       msgpack_pack_nil(pk);
     else
       msgpack_pack_unsigned_long(pk, data->line);
+
+    // Key6 : "size"
+    pack_string(pk, "size");
+
+    // Value6 : Size of the object in memory
+    if(data->size == 0)
+      msgpack_pack_nil(pk);
+    else
+      msgpack_pack_uint32(pk, data->size);
 
     free(data);
   }
