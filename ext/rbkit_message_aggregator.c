@@ -3,10 +3,10 @@
 
 // Struct that holds each message
 // to form a linked list of accumulated messages
-typedef struct _message {
+typedef struct _rbkit_message {
   void *data;
   size_t size;
-} message;
+} rbkit_message;
 
 static rbkit_list_t *message_list;
 static size_t total_memsize;
@@ -33,15 +33,15 @@ void add_message(msgpack_sbuffer *buffer) {
   total_memsize += buffer->size;
   void *data = malloc(buffer->size);
   memcpy(data, buffer->data, buffer->size);
-  message *msg = malloc(sizeof(message));
+  rbkit_message *msg = malloc(sizeof(rbkit_message));
   msg->size = buffer->size;
   msg->data = data;
   rbkit_list_append(message_list, msg);
 }
 
-// Creates a msgpack array containing all the available
+// Creates a message containing all the available
 // msgpack sbuffers in the list and frees them.
-msgpack_sbuffer * get_messages_as_msgpack_array() {
+msgpack_sbuffer * get_event_collection_message() {
   sbuf = msgpack_sbuffer_new();
   if(list_size(message_list) > 0) {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
@@ -50,7 +50,7 @@ msgpack_sbuffer * get_messages_as_msgpack_array() {
     msgpack_pack_array(pk, rbkit_list_size(message_list));
     sbuf->data = realloc(sbuf->data, total_memsize + sbuf->size);
 
-    message *msg = rbkit_list_first(message_list);
+    rbkit_message *msg = rbkit_list_first(message_list);
     size_t total = 0;
     while(msg) {
       memcpy(sbuf->data + sbuf->size, msg->data, msg->size);
