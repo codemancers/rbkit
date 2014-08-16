@@ -7,8 +7,8 @@
 //
 
 #include "rbkit_tracer.h"
-#include "object_graph.h"
-#include "message_aggregator.h"
+#include "rbkit_object_graph.h"
+#include "rbkit_message_aggregator.h"
 #include <sys/time.h>
 
 static const char *event_names[] = {

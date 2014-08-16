@@ -1,5 +1,5 @@
-#ifndef LIST_H
-#define LIST_H
+#ifndef RBKIT_LIST_H
+#define RBKIT_LIST_H
 
 /*
  * A reusable linked list implementation.

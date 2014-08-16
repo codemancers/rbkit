@@ -1,5 +1,5 @@
 #include "zmq.h"
-#include "message_aggregator.h"
+#include "rbkit_message_aggregator.h"
 
 // Struct that holds each message
 // to form a linked list of accumulated messages

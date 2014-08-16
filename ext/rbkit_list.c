@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "list.h"
+#include "rbkit_list.h"
 
 static void reset_list(list_t * self_p) {
   self_p->tail = NULL;
