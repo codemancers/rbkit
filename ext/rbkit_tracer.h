@@ -32,5 +32,4 @@ void pack_timestamp(msgpack_packer *packer);
 void pack_event_header(msgpack_packer *packer, const char *event_type, int map_size);
 void pack_pointer(msgpack_packer *packer, VALUE object_id);
 
-
 #endif

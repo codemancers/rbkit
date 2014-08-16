@@ -12,9 +12,12 @@ module Rbkit
       @profiler_thread = nil
       @stop_thread = false
       @server_running = false
-      @timer = Rbkit::Timer.new(5) do
+      @gc_stats_timer = Rbkit::Timer.new(5) do
         data = GC.stat
         Rbkit.send_hash_as_event(data, "gc_stats")
+      end
+      @message_dispatch_timer = Rbkit::Timer.new(1) do
+        Rbkit.send_messages
       end
     end
 
@@ -27,8 +30,9 @@ module Rbkit
           break if @stop_thread
           incoming_request = Rbkit.poll_for_request
           process_incoming_request(incoming_request)
+          @gc_stats_timer.run
+          @message_dispatch_timer.run
           # Let us sleep this thread for a bit, so as other things can run.
-          @timer.run
           sleep(0.05)
         end
       end

@@ -8,6 +8,7 @@
 
 #include "rbkit_tracer.h"
 #include "object_graph.h"
+#include "message_aggregator.h"
 #include <sys/time.h>
 
 static const char *event_names[] = {
@@ -25,17 +26,12 @@ static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 
-// send whatever has been recorded so far as event
-static void send_event() {
-  zmq_send(zmq_publisher, logger->sbuf->data, logger->sbuf->size, 0);
-}
-
 void pack_event_header(msgpack_packer* packer, const char *event_type, int map_size)
 {
   msgpack_pack_map(packer, map_size);
   pack_string(packer, "event_type");
   pack_string(packer, event_type);
-  
+
   pack_string(packer, "timestamp");
   pack_timestamp(packer);
 }
@@ -45,11 +41,11 @@ static void trace_gc_invocation(void *data, int event_index) {
   if (event_index == 0) {
     msgpack_sbuffer_clear(logger->sbuf);
     pack_event_header(logger->msgpacker, event_names[event_index], 2);
-    send_event();
+    add_message(logger->sbuf);
   } else if (event_index == 2) {
     msgpack_sbuffer_clear(logger->sbuf);
     pack_event_header(logger->msgpacker, event_names[event_index], 2);
-    send_event();
+    add_message(logger->sbuf);
   }
 }
 
@@ -211,7 +207,7 @@ static void newobj_i(VALUE tpval, void *data) {
   } else {
     msgpack_pack_nil(arg->msgpacker);
   }
-  send_event();
+  add_message(arg->sbuf);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
@@ -235,7 +231,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   msgpack_pack_map(logger->msgpacker, 1);
   pack_string(logger->msgpacker, "object_id");
   pack_pointer(logger->msgpacker, obj);
-  send_event();
+  add_message(logger->sbuf);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -258,6 +254,8 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
       rb_raise(rb_eArgError, "invalid port value");
   }
 
+  // Creates a list which aggregates messages
+  message_list_new();
   logger = get_trace_logger();
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
@@ -272,14 +270,14 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
   bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
   assert(bind_result == 0);
-  
+
   char zmq_request_endpoint[14];
   sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
-  
+
   zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
   bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
   assert(bind_result == 0);
-  
+
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
   return Qnil;
@@ -351,6 +349,8 @@ static VALUE stop_stat_server() {
   if (logger->enabled == Qtrue)
     stop_stat_tracing();
 
+  // Destroy the list which aggregates messages
+  message_list_destroy();
   // Clear object_table which holds object allocation info
   st_foreach(logger->object_table, free_values_i, 0);
   st_clear(logger->object_table);
@@ -373,7 +373,7 @@ void pack_value_object(msgpack_packer *packer, VALUE value) {
       break;
     case T_FLOAT:
       msgpack_pack_double(packer, rb_num2dbl(value));
-      break;    
+      break;
     default:
       ;
       VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
@@ -407,7 +407,7 @@ void pack_string(msgpack_packer *packer, char *string) {
 void pack_timestamp(msgpack_packer *packer) {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    
+
     double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
     msgpack_pack_double(packer, time_in_milliseconds);
 }
@@ -427,7 +427,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   msgpack_pack_map(packer, size);
 
   rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
-  zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+  add_message(buffer);
   msgpack_sbuffer_destroy(buffer);
   msgpack_packer_free(packer);
   return Qnil;
@@ -535,6 +535,21 @@ static VALUE send_objectspace_dump() {
   return Qnil;
 }
 
+/*
+ * Creates a msgpack array which contains all the messages packed after
+ * the last time send_messages() was called, and sends it over the PUB socket.
+ */
+static VALUE send_messages() {
+  //Get all aggregated messages as a single msgpack array
+  msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_messages_as_msgpack_array();
+  //Send the msgpack array over zmq PUB socket
+  zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  // Clear the aggregated messages
+  message_list_clear();
+  msgpack_sbuffer_destroy(sbuf);
+  return Qnil;
+}
+
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
@@ -544,4 +559,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
+  rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
 }
