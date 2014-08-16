@@ -8,22 +8,22 @@ typedef struct _message {
   size_t size;
 } message;
 
-static list_t *message_list;
+static rbkit_list_t *message_list;
 static size_t total_memsize;
 static msgpack_sbuffer * sbuf;
 
 void message_list_new() {
-  message_list = list_new();
+  message_list = rbkit_list_new();
   total_memsize = 0;
 }
 
 void message_list_destroy() {
-  list_destroy(message_list);
+  rbkit_list_destroy(message_list);
   total_memsize = 0;
 }
 
 void message_list_clear() {
-  list_clear(message_list);
+  rbkit_list_clear(message_list);
   total_memsize = 0;
 }
 
@@ -36,7 +36,7 @@ void add_message(msgpack_sbuffer *buffer) {
   message *msg = malloc(sizeof(message));
   msg->size = buffer->size;
   msg->data = data;
-  list_append(message_list, msg);
+  rbkit_list_append(message_list, msg);
 }
 
 // Creates a msgpack array containing all the available
@@ -47,17 +47,17 @@ msgpack_sbuffer * get_messages_as_msgpack_array() {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
     pack_event_header(pk, "event_collection", 3);
     pack_string(pk, "payload");
-    msgpack_pack_array(pk, list_size(message_list));
+    msgpack_pack_array(pk, rbkit_list_size(message_list));
     sbuf->data = realloc(sbuf->data, total_memsize + sbuf->size);
 
-    message *msg = list_first(message_list);
+    message *msg = rbkit_list_first(message_list);
     size_t total = 0;
     while(msg) {
       memcpy(sbuf->data + sbuf->size, msg->data, msg->size);
       sbuf->size += msg->size;
       free(msg->data);
       free(msg);
-      msg = list_next(message_list);
+      msg = rbkit_list_next(message_list);
     }
 
     msgpack_packer_free(pk);
