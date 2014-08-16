@@ -525,7 +525,7 @@ static VALUE send_objectspace_dump() {
   }
 
   // Send packed message over zmq
-  zmq_send(zmq_publisher, buffer->data, buffer->size, 0);
+  add_message(buffer);
 
   //Cleanup
   free(dump);
@@ -543,7 +543,8 @@ static VALUE send_messages() {
   //Get all aggregated messages as a single msgpack array
   msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_messages_as_msgpack_array();
   //Send the msgpack array over zmq PUB socket
-  zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  if(sbuf->size > 0)
+    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_destroy(sbuf);
