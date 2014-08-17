@@ -1,5 +1,6 @@
 require 'zmq'
 require 'msgpack'
+require 'pp'
 
 Thread.abort_on_exception = true
 
@@ -45,9 +46,9 @@ begin
   loop do
     message = socket.recv
     unpacked_message = MessagePack.unpack(message)
+    PP.pp(unpacked_message, output_file)
     output_file.flush
   end
 ensure
   output_file.close
-  output_file.unlink
 end
