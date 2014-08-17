@@ -1,8 +1,7 @@
 #include <ruby.h>
 #include "object_graph.h"
 
-struct ObjectData * initialize_object_data()
-{
+struct ObjectData * initialize_object_data() {
   struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
   data->next = NULL;
   data->references = NULL;
@@ -10,7 +9,14 @@ struct ObjectData * initialize_object_data()
   data->reference_count = 0;
   data->file = NULL;
   data->line = 0;
+  data->size = 0;
   return data;
+}
+
+static void set_size(VALUE obj, struct ObjectData * data) {
+  size_t size;
+  if ((size = rb_obj_memsize_of(obj)) > 0)
+    data->size = size;
 }
 
 static void dump_root_object(VALUE obj, const char* category, struct ObjectDump * dump) {
@@ -35,6 +41,8 @@ static void dump_root_object(VALUE obj, const char* category, struct ObjectDump 
       data->line = info->line;
     }
   }
+
+  set_size(obj, data);
 
   if(dump->first == NULL) {
     dump->first = data;
@@ -82,6 +90,8 @@ static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
       data->line = info->line;
     }
   }
+
+  set_size(obj, data);
 
   //Put it in the linked list
   if(dump->first == NULL) {
