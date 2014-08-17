@@ -2,6 +2,8 @@
 #include "rbkit_list.h"
 
 static void reset_list(list_t * self_p) {
+  if(!self_p)
+    return;
   self_p->tail = NULL;
   self_p->head = NULL;
   self_p->cursor = NULL;
@@ -17,6 +19,8 @@ list_t * list_new (void) {
 // Get the first item in the list
 void * list_first (list_t *self_p)
 {
+  if(!self_p)
+    return NULL;
   self_p->cursor = self_p->head;
   if (self_p->cursor)
     return self_p->cursor->item;
@@ -26,6 +30,8 @@ void * list_first (list_t *self_p)
 
 // Get next item in the list
 void * list_next (list_t *self_p) {
+  if(!self_p)
+    return NULL;
   if (self_p->cursor)
     self_p->cursor = self_p->cursor->next;
   else
@@ -40,6 +46,8 @@ void * list_next (list_t *self_p) {
 //  Append an item to the end of the list, return 0 if OK
 //  or -1 if this failed for some reason (out of memory).
 int list_append (list_t *self_p, void *item) {
+  if(!self_p)
+    return -1;
   if (!item)
     return -1;
 
@@ -64,10 +72,14 @@ int list_append (list_t *self_p, void *item) {
 
 // Get the number of items in the list
 size_t list_size (list_t *self_p) {
+  if(!self_p)
+    return 0;
   return self_p->size;
 }
 
 static void delete_nodes(list_t *self_p) {
+  if(!self_p)
+    return;
   node_t *node = (self_p)->head;
   while (node) {
     node_t *next = node->next;
@@ -86,6 +98,8 @@ void list_clear (list_t *self_p) {
 // Deletes the nodes contained in the list and
 // deletes the list itself.
 void list_destroy (list_t *self_p) {
+  if(!self_p)
+    return;
   delete_nodes(self_p);
   free(self_p);
   self_p = NULL;
