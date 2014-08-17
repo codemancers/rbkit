@@ -97,10 +97,11 @@ void rbkit_list_clear (rbkit_list_t *self_p) {
 
 // Deletes the nodes contained in the list and
 // deletes the list itself.
-void rbkit_list_destroy (rbkit_list_t *self_p) {
-  if(!self_p)
+void rbkit_list_destroy (rbkit_list_t **self_p) {
+  if(!self_p || !(*self_p))
     return;
-  delete_nodes(self_p);
-  free(self_p);
-  self_p = NULL;
+  rbkit_list_t *current = *self_p;
+  delete_nodes(*self_p);
+  free(current);
+  *self_p = NULL;
 }

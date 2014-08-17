@@ -18,7 +18,7 @@ void message_list_new() {
 }
 
 void message_list_destroy() {
-  rbkit_list_destroy(message_list);
+  rbkit_list_destroy(&message_list);
   total_memsize = 0;
 }
 
