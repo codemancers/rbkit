@@ -47,6 +47,7 @@ begin
     message = socket.recv
     unpacked_message = MessagePack.unpack(message)
     output_file.puts unpacked_message
+    output_file.flush
   end
 ensure
   output_file.close
