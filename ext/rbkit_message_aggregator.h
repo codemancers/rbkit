@@ -7,7 +7,7 @@
 
 void message_list_new();
 void add_message(msgpack_sbuffer *);
-msgpack_sbuffer * get_messages_as_msgpack_array();
+msgpack_sbuffer * get_event_collection_message();
 void message_list_destroy();
 void message_list_clear();
 

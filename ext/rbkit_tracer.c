@@ -553,7 +553,7 @@ static VALUE send_messages() {
   //Get all aggregated messages as payload of a single event.
   msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_event_collection_message();
   //Send the msgpack array over zmq PUB socket
-  if(sbuf->size > 0)
+  if(sbuf && sbuf->size > 0)
     zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
