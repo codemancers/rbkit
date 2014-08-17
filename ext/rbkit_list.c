@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "rbkit_list.h"
 
-static void reset_list(list_t * self_p) {
+static void reset_list(rbkit_list_t * self_p) {
   if(!self_p)
     return;
   self_p->tail = NULL;
@@ -10,14 +10,14 @@ static void reset_list(list_t * self_p) {
   self_p->size = 0;
 }
 
-list_t * list_new (void) {
-  list_t *self_p = (list_t *) malloc (sizeof (list_t));
+rbkit_list_t * rbkit_list_new (void) {
+  rbkit_list_t *self_p = (rbkit_list_t *) malloc (sizeof (rbkit_list_t));
   reset_list(self_p);
   return self_p;
 }
 
 // Get the first item in the list
-void * list_first (list_t *self_p)
+void * rbkit_list_first (rbkit_list_t *self_p)
 {
   if(!self_p)
     return NULL;
@@ -29,7 +29,7 @@ void * list_first (list_t *self_p)
 }
 
 // Get next item in the list
-void * list_next (list_t *self_p) {
+void * rbkit_list_next (rbkit_list_t *self_p) {
   if(!self_p)
     return NULL;
   if (self_p->cursor)
@@ -45,14 +45,14 @@ void * list_next (list_t *self_p) {
 
 //  Append an item to the end of the list, return 0 if OK
 //  or -1 if this failed for some reason (out of memory).
-int list_append (list_t *self_p, void *item) {
+int rbkit_list_append (rbkit_list_t *self_p, void *item) {
   if(!self_p)
     return -1;
   if (!item)
     return -1;
 
-  node_t *node;
-  node = (node_t *) malloc (sizeof (node_t));
+  rbkit_node_t *node;
+  node = (rbkit_node_t *) malloc (sizeof (rbkit_node_t));
   if (!node)
     return -1;
 
@@ -71,18 +71,18 @@ int list_append (list_t *self_p, void *item) {
 }
 
 // Get the number of items in the list
-size_t list_size (list_t *self_p) {
+size_t rbkit_list_size (rbkit_list_t *self_p) {
   if(!self_p)
     return 0;
   return self_p->size;
 }
 
-static void delete_nodes(list_t *self_p) {
+static void delete_nodes(rbkit_list_t *self_p) {
   if(!self_p)
     return;
-  node_t *node = (self_p)->head;
+  rbkit_node_t *node = (self_p)->head;
   while (node) {
-    node_t *next = node->next;
+    rbkit_node_t *next = node->next;
     free (node);
     node = next;
   }
@@ -90,14 +90,14 @@ static void delete_nodes(list_t *self_p) {
 
 // Deletes the nodes contained in the list and
 // resets head, next and cursor.
-void list_clear (list_t *self_p) {
+void rbkit_list_clear (rbkit_list_t *self_p) {
   delete_nodes(self_p);
   reset_list(self_p);
 }
 
 // Deletes the nodes contained in the list and
 // deletes the list itself.
-void list_destroy (list_t *self_p) {
+void rbkit_list_destroy (rbkit_list_t *self_p) {
   if(!self_p)
     return;
   delete_nodes(self_p);
