@@ -43,7 +43,7 @@ void add_message(msgpack_sbuffer *buffer) {
 // msgpack sbuffers in the list and frees them.
 msgpack_sbuffer * get_messages_as_msgpack_array() {
   sbuf = msgpack_sbuffer_new();
-  if(list_size(message_list) > 0) {
+  if(rbkit_list_size(message_list) > 0) {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
     pack_event_header(pk, "event_collection", 3);
     pack_string(pk, "payload");
@@ -51,7 +51,6 @@ msgpack_sbuffer * get_messages_as_msgpack_array() {
     sbuf->data = realloc(sbuf->data, total_memsize + sbuf->size);
 
     message *msg = list_first(message_list);
-    size_t total = 0;
     while(msg) {
       memcpy(sbuf->data + sbuf->size, msg->data, msg->size);
       sbuf->size += msg->size;
