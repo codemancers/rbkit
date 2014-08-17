@@ -1,9 +1,9 @@
-#ifndef MESSAGE_AGGREGATOR_H
-#define MESSAGE_AGGREGATOR_H
+#ifndef RBKIT_MESSAGE_AGGREGATOR_H
+#define RBKIT_MESSAGE_AGGREGATOR_H
 
 #include "msgpack.h"
 #include "zmq.h"
-#include "list.h"
+#include "rbkit_list.h"
 
 void message_list_new();
 void add_message(msgpack_sbuffer *);

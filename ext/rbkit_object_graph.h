@@ -1,5 +1,5 @@
-#ifndef OBJECT_GRAPH
-#define OBJECT_GRAPH
+#ifndef RBKIT_OBJECT_GRAPH
+#define RBKIT_OBJECT_GRAPH
 
 struct ObjectData {
   const void * object_id;
