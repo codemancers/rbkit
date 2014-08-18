@@ -9,7 +9,8 @@ static VALUE noop_send_messages() {
 static VALUE get_queued_messages() {
   msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_event_collection_message();
   fprintf(stderr, "Queued message size = %d\n", sbuf->size);
-  return rb_str_new(sbuf->data, sbuf->size);
+  /*return rb_str_new(sbuf->data, sbuf->size);*/
+  return Qnil;
 }
 
 void Init_rbkit_test_helper(void) {

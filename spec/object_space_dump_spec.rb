@@ -1,9 +1,9 @@
 require 'spec_helper'
 describe "Object space dump" do
   it "should #TODO" do
-    Rbkit.start_profiling
+    Rbkit.start_server
     Object.new
     Object.new
-    puts Rbkit.get_queued_messages
+    require 'pry'; binding.pry 
   end
 end

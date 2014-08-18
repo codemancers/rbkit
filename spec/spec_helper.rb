@@ -5,7 +5,7 @@
 #
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 require 'rbkit'
-require 'rbkit_test_helper'
+Rbkit.enable_test_mode
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
   config.filter_run :focus
