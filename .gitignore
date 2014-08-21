@@ -12,3 +12,5 @@ Gemfile.lock
 /ext/.kdev4/
 /ext/ext.kdev4
 /mkmf.log
+/coverage
+*.xcodeproj

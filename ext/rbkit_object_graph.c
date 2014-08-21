@@ -1,5 +1,5 @@
 #include <ruby.h>
-#include "object_graph.h"
+#include "rbkit_object_graph.h"
 
 struct ObjectData * initialize_object_data() {
   struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
