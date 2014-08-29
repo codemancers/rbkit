@@ -483,7 +483,6 @@ static VALUE send_objectspace_dump() {
     char * object_id;
     asprintf(&object_id, "%p", data->object_id);
     pack_string(pk, object_id); 
-    free(object_id);
 
     // Key2 : "class_name"
     pack_string(pk, "class_name");
