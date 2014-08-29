@@ -10,6 +10,8 @@
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
 #include <sys/time.h>
+#include "rbkit_utils.h"
+
 
 static const char *event_names[] = {
   "gc_start",
@@ -291,7 +293,7 @@ char * tracer_string_recv(void *socket) {
   rc = zmq_msg_recv(&msg, socket, 0);
   assert(rc != -1);
   size_t message_size = zmq_msg_size(&msg);
-  char *message = (char *)malloc(message_size +1);
+  char *message = (char *)rbkit_malloc(message_size +1);
   memcpy(message, zmq_msg_data(&msg), message_size);
   message[message_size] = 0;
   zmq_msg_close(&msg);

@@ -1,8 +1,9 @@
 #include <ruby.h>
 #include "rbkit_object_graph.h"
+#include "rbkit_utils.h"
 
 struct ObjectData * initialize_object_data() {
-  struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
+  struct ObjectData *data = (struct ObjectData *) rbkit_malloc(sizeof(struct ObjectData));
   data->next = NULL;
   data->references = NULL;
   data->class_name = NULL;
@@ -62,9 +63,9 @@ static void reachable_object_i(VALUE ref, struct ObjectData *data)
 
   data->reference_count ++;
   if (data->reference_count == 1) {
-    data->references = malloc(sizeof(void *));
+    data->references = rbkit_malloc(sizeof(void *));
   } else {
-    data->references = realloc(data->references, data->reference_count * sizeof(void *) );
+    data->references = rbkit_realloc(data->references, data->reference_count * sizeof(void *) );
   }
   data->references[data->reference_count - 1] = (void *)ref;
 }
@@ -140,7 +141,7 @@ static void collect_heap_objects(struct ObjectDump * dump) {
 }
 
 struct ObjectDump * get_object_dump(st_table * object_table) {
-  struct ObjectDump * dump = (struct ObjectDump *) malloc(sizeof(struct ObjectDump));
+  struct ObjectDump * dump = (struct ObjectDump *) rbkit_malloc(sizeof(struct ObjectDump));
   dump->object_table = object_table;
   dump->first = NULL;
   dump->last = NULL;

@@ -1,5 +1,6 @@
 #include "zmq.h"
 #include "rbkit_message_aggregator.h"
+#include "rbkit_utils.h"
 
 static msgpack_sbuffer * sbuf;
 static void* message_array;
@@ -13,12 +14,12 @@ static int has_enough_space_for(size_t size) {
 
 static void double_the_capacity() {
   total_capacity *= 2;
-  message_array = realloc(message_array, total_capacity);
+  message_array = rbkit_realloc(message_array, total_capacity);
 }
 
 void message_list_new() {
   size_t initial_size = 1024; // Reserve 1 KB of memory
-  message_array = malloc(initial_size);
+  message_array = rbkit_malloc(initial_size);
   total_capacity = initial_size;
   used_memsize = 0;
   no_of_messages = 0;
@@ -54,7 +55,7 @@ void get_event_collection_message(msgpack_sbuffer *sbuf) {
     pack_event_header(pk, "event_collection", 3);
     pack_string(pk, "payload");
     msgpack_pack_array(pk, no_of_messages);
-    sbuf->data = realloc(sbuf->data, used_memsize + sbuf->size);
+    sbuf->data = rbkit_realloc(sbuf->data, used_memsize + sbuf->size);
     memcpy(sbuf->data + sbuf->size, message_array, used_memsize);
     sbuf->size += used_memsize;
 
