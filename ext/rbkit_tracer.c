@@ -359,7 +359,7 @@ static VALUE stop_stat_server() {
   st_foreach(logger->str_table, free_keys_i, 0);
   st_clear(logger->str_table);
 
-  msgpack_sbuffer_destroy(logger->sbuf);
+  msgpack_sbuffer_free(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
   zmq_close(zmq_response_socket);
@@ -430,9 +430,8 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 
   rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
   add_message(buffer);
-  msgpack_sbuffer_destroy(buffer);
+  msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
-  free(buffer);
   return Qnil;
 }
 
@@ -541,9 +540,8 @@ static VALUE send_objectspace_dump() {
 
   //Cleanup
   free(dump);
-  msgpack_sbuffer_destroy(buffer);
+  msgpack_sbuffer_free(buffer);
   msgpack_packer_free(pk);
-  free(buffer);
 
   return Qnil;
 }
@@ -561,8 +559,7 @@ static VALUE send_messages() {
     zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
-  msgpack_sbuffer_destroy(sbuf);
-  free(sbuf);
+  msgpack_sbuffer_free(sbuf);
   return Qnil;
 }
 
