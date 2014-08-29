@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "zmq.h"
 #include "rbkit_message_aggregator.h"
 
@@ -14,6 +15,7 @@ static int has_enough_space_for(size_t size) {
 static void double_the_capacity() {
   total_capacity *= 2;
   message_array = realloc(message_array, total_capacity);
+  assert(message_array);
 }
 
 void message_list_new() {
@@ -55,6 +57,7 @@ void get_event_collection_message(msgpack_sbuffer *sbuf) {
     pack_string(pk, "payload");
     msgpack_pack_array(pk, no_of_messages);
     sbuf->data = realloc(sbuf->data, used_memsize + sbuf->size);
+    assert(sbuf->data);
     memcpy(sbuf->data + sbuf->size, message_array, used_memsize);
     sbuf->size += used_memsize;
 
