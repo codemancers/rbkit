@@ -48,8 +48,7 @@ void add_message(msgpack_sbuffer *buffer) {
 
 // Creates a message containing all the available
 // msgpack sbuffers in the array
-msgpack_sbuffer * get_event_collection_message() {
-  sbuf = msgpack_sbuffer_new();
+void get_event_collection_message(msgpack_sbuffer *sbuf) {
   if(no_of_messages > 0) {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
     pack_event_header(pk, "event_collection", 3);
@@ -61,5 +60,4 @@ msgpack_sbuffer * get_event_collection_message() {
 
     msgpack_packer_free(pk);
   }
-  return sbuf;
 }
