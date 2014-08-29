@@ -430,6 +430,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   add_message(buffer);
   msgpack_sbuffer_destroy(buffer);
   msgpack_packer_free(packer);
+  free(buffer);
   return Qnil;
 }
 
@@ -541,6 +542,7 @@ static VALUE send_objectspace_dump() {
   free(dump);
   msgpack_sbuffer_destroy(buffer);
   msgpack_packer_free(pk);
+  free(buffer);
 
   return Qnil;
 }
@@ -559,6 +561,7 @@ static VALUE send_messages() {
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_destroy(sbuf);
+  free(sbuf);
   return Qnil;
 }
 
