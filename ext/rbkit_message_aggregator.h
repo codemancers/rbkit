@@ -3,7 +3,6 @@
 
 #include "msgpack.h"
 #include "zmq.h"
-#include "rbkit_list.h"
 
 void message_list_new();
 void add_message(msgpack_sbuffer *);

@@ -1,63 +1,63 @@
 #include "zmq.h"
 #include "rbkit_message_aggregator.h"
 
-// Struct that holds each message
-// to form a linked list of accumulated messages
-typedef struct _rbkit_message {
-  void *data;
-  size_t size;
-} rbkit_message;
-
-static rbkit_list_t *message_list;
-static size_t total_memsize;
 static msgpack_sbuffer * sbuf;
+static void* message_array;
+static size_t used_memsize;
+static size_t total_capacity;
+static size_t no_of_messages;
+
+static int has_enough_space_for(size_t size) {
+  return ((total_capacity - used_memsize) >= size);
+}
+
+static void double_the_capacity() {
+  total_capacity *= 2;
+  message_array = realloc(message_array, total_capacity);
+}
 
 void message_list_new() {
-  message_list = rbkit_list_new();
-  total_memsize = 0;
+  size_t initial_size = 1024; // Reserve 1 KB of memory
+  message_array = malloc(initial_size);
+  total_capacity = initial_size;
+  used_memsize = 0;
+  no_of_messages = 0;
 }
 
 void message_list_destroy() {
-  rbkit_list_destroy(&message_list);
-  total_memsize = 0;
+  free(message_array);
+  used_memsize = 0;
+  total_capacity = 0;
+  no_of_messages = 0;
 }
 
 void message_list_clear() {
-  rbkit_list_clear(message_list);
-  total_memsize = 0;
+  used_memsize = 0;
+  no_of_messages = 0;
 }
 
-// Makes a copy of the msgpack sbuffer, and pushes
-// the pointer to sbuffer to the list
+// Copies the msgpack sbuffer to the end of
+// a dynamically growing array
 void add_message(msgpack_sbuffer *buffer) {
-  total_memsize += buffer->size;
-  void *data = malloc(buffer->size);
-  memcpy(data, buffer->data, buffer->size);
-  rbkit_message *msg = malloc(sizeof(rbkit_message));
-  msg->size = buffer->size;
-  msg->data = data;
-  rbkit_list_append(message_list, msg);
+  while(!has_enough_space_for(buffer->size))
+    double_the_capacity();
+  memcpy(message_array + used_memsize, buffer->data, buffer->size);
+  used_memsize += buffer->size;
+  no_of_messages += 1;
 }
 
 // Creates a message containing all the available
-// msgpack sbuffers in the list and frees them.
+// msgpack sbuffers in the array
 msgpack_sbuffer * get_event_collection_message() {
   sbuf = msgpack_sbuffer_new();
-  if(rbkit_list_size(message_list) > 0) {
+  if(no_of_messages > 0) {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
     pack_event_header(pk, "event_collection", 3);
     pack_string(pk, "payload");
-    msgpack_pack_array(pk, rbkit_list_size(message_list));
-    sbuf->data = realloc(sbuf->data, total_memsize + sbuf->size);
-
-    rbkit_message *msg = rbkit_list_first(message_list);
-    while(msg) {
-      memcpy(sbuf->data + sbuf->size, msg->data, msg->size);
-      sbuf->size += msg->size;
-      free(msg->data);
-      free(msg);
-      msg = rbkit_list_next(message_list);
-    }
+    msgpack_pack_array(pk, no_of_messages);
+    sbuf->data = realloc(sbuf->data, used_memsize + sbuf->size);
+    memcpy(sbuf->data + sbuf->size, message_array, used_memsize);
+    sbuf->size += used_memsize;
 
     msgpack_packer_free(pk);
   }
