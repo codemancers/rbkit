@@ -313,7 +313,9 @@ static VALUE poll_for_request() {
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
     tracer_string_send(zmq_response_socket, "ok");
-    return rb_str_new_cstr(message);
+    VALUE command_ruby_string = rb_str_new_cstr(message);
+    free(message);
+    return command_ruby_string;
   } else {
     return Qnil;
   }
