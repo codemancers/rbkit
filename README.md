@@ -17,6 +17,17 @@ bundle install
 bundle exec rake compile
 ```
 
+If you don't want to use `rake-compiler` to compile the C extension, follow
+these instructions :
+```
+cd ext
+ruby extconf.rb
+make
+# Create a symlink at `lib/rbkit_tracer.bundle`
+# that points to `ext/rbkit_tracer.bundle`
+# (in order to use `rbkit` gem in Gemfiles using `path` option)
+```
+
 3. Tasks to do:
 
 * [X] implement support for disabling trackpoints
