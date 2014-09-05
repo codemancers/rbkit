@@ -14,6 +14,11 @@ module Rbkit
       @server_running = false
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = GC.stat
+        no_of_allocated_pages = data[:heap_length]
+        max_objects_per_page = GC::INTERNAL_CONSTANTS[:HEAP_OBJ_LIMIT]
+        size_of_one_obj = GC::INTERNAL_CONSTANTS[:RVALUE_SIZE]
+        data[:total_heap_size] = no_of_allocated_pages * max_objects_per_page *
+          size_of_one_obj
         Rbkit.send_hash_as_event(data, "gc_stats")
       end
       @message_dispatch_timer = Rbkit::Timer.new(1) do
