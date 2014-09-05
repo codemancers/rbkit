@@ -53,6 +53,9 @@ We'll call this `<RBKIT_PATH>`.
 Set the environment variable `RBKIT_DEV` to true.
 If using bash, put `export RBKIT_DEV=true` in your `~/.bashrc`.
 
+This compiles the C extension with debug flag and also sets a macro named
+`RBKIT_DEV` inside the C extension.
+
 #### Compile the C extension
 
 Two ways to do this :
