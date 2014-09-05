@@ -46,7 +46,7 @@ but for now, this has to suffice.
 
 `git clone git@github.com:code-mancers/rbkit.git`
 
-We'll call this <RBKIT_PATH>.
+We'll call this `<RBKIT_PATH>`.
 
 #### Set RBKIT_DEV environment flag
 
