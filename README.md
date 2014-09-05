@@ -1,6 +1,38 @@
-1. This is a Ruby C extension that expose object allocation stats
+Rbkit
+=====
 
-For compiling it, install:
+`rbkit` is a Ruby gem that plugs into your ruby process, taps profiling data
+in realtime and sends it across the wire to the [rbkit-client](https://github.com/code-mancers/rbkit-client)
+as packed messages.
+
+## Usage
+
+Rbkit is not ready for production yet. To use the development version of Rbkit
+in your Ruby project, follow the instructions under `Development` section and
+then follow these steps :
+
+#### Add `rbkit` to Gemfile
+
+Add the following to the project's Gemfiles
+
+```
+gem 'rbkit', path: <RBKIT_PATH>`
+```
+and run `bundle install`
+
+#### Inject `rbkit` into code
+
+Wherever you want to start profiling, add the following :
+```
+require 'rbkit'
+Rbkit.start_profiling
+```
+If using Rails, and you want to measure everything from the boot process,
+a good place to put this would be at the end of `config/boot.rb`.
+
+## Development
+
+#### Install zmq and msgpack
 
 ```
 ~> brew install zeromq
@@ -10,17 +42,34 @@ For compiling it, install:
 At some point, we will bundle these two C libraries during gem installations
 but for now, this has to suffice.
 
-2. After that, run
+#### Clone the repo
+
+`git clone git@github.com:code-mancers/rbkit.git`
+
+We'll call this <RBKIT_PATH>.
+
+#### Set RBKIT_DEV environment flag
+
+Set the environment variable `RBKIT_DEV` to true.
+If using bash, put `export RBKIT_DEV=true` in your `~/.bashrc`.
+
+#### Compile the C extension
+
+Two ways to do this :
+
+##### Using rake-compiler
 
 ```
+cd <RBKIT_PATH>
 bundle install
 bundle exec rake compile
+
 ```
 
-If you don't want to use `rake-compiler` to compile the C extension, follow
-these instructions :
+##### Or do it manually
+
 ```
-cd ext
+cd <RBKIT_PATH/ext>
 ruby extconf.rb
 make
 # Create a symlink at `lib/rbkit_tracer.bundle`
@@ -28,16 +77,6 @@ make
 # (in order to use `rbkit` gem in Gemfiles using `path` option)
 ```
 
-3. Tasks to do:
+## TODO
 
-* [X] implement support for disabling trackpoints
-* [X] implement support for cleaning zmq context on shutdown.
-* [X] Write some ruby code that installs at_exit block for socket cleanup.
-* [X] Fix memory leak around event names.
-* [X] Allow user to specify port where profiler should start.
-* [X] Implement support for returning object classes along with event names.
-* [X] Send objectspace dump over zmq
-* [X] Client should be able to trigger GC
-* [X] Use PUB-SUB socket pair for sending events from server
-* [X] Use REQ-REP socket pair to accept commands from client
-* [X] Collect file and line no of object allocation
+TODOs are tracked as github issues.
