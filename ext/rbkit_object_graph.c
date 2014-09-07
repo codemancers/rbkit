@@ -1,26 +1,44 @@
 #include <ruby.h>
 #include "rbkit_object_graph.h"
 
-struct ObjectData * initialize_object_data() {
-  struct ObjectData *data = (struct ObjectData *) malloc(sizeof(struct ObjectData));
-  data->next = NULL;
+rbkit_object_dump_page * rbkit_object_dump_page_new() {
+  rbkit_object_dump_page *page = malloc(sizeof(rbkit_object_dump_page));
+  page->count = 0;
+  page->next = NULL;
+  return page;
+}
+
+rbkit_object_data * initialize_object_data(rbkit_object_dump *dump) {
+  if(dump->first == NULL) {
+    rbkit_object_dump_page *page = rbkit_object_dump_page_new();
+    dump->first = page;
+    dump->last = page;
+    dump->page_count = 1;
+    dump->object_count = 0;
+  } else if (dump->last->count == RBKIT_OBJECT_DUMP_PAGE_SIZE) {
+    rbkit_object_dump_page *page = rbkit_object_dump_page_new();
+    dump->last->next = page;
+    dump->last = page;
+    dump->page_count++;
+  }
+  rbkit_object_data *data = &(dump->last->data[dump->last->count]);
   data->references = NULL;
   data->class_name = NULL;
   data->reference_count = 0;
   data->file = NULL;
   data->line = 0;
   data->size = 0;
-  return data;
+  return(data);
 }
 
-static void set_size(VALUE obj, struct ObjectData * data) {
+static void set_size(VALUE obj, rbkit_object_data * data) {
   size_t size;
   if ((size = rb_obj_memsize_of(obj)) > 0)
     data->size = size;
 }
 
-static void dump_root_object(VALUE obj, const char* category, struct ObjectDump * dump) {
-  struct ObjectData *data = initialize_object_data();
+static void dump_root_object(VALUE obj, const char* category, rbkit_object_dump *dump) {
+  rbkit_object_data *data = initialize_object_data(dump);
 
   //Set object id
   data->object_id = (void *)obj;
@@ -43,19 +61,13 @@ static void dump_root_object(VALUE obj, const char* category, struct ObjectDump 
   }
 
   set_size(obj, data);
-
-  if(dump->first == NULL) {
-    dump->first = data;
-    dump->last = data;
-    dump->size = 1;
-  } else {
-    dump->last->next = data;
-    dump->last = data;
-    dump->size++;
-  }
+  // Update total number of objects
+  dump->object_count++;
+  // Update number of objects on last page
+  dump->last->count++;
 }
 
-static void reachable_object_i(VALUE ref, struct ObjectData *data)
+static void reachable_object_i(VALUE ref, rbkit_object_data *data)
 {
   if(RBASIC_CLASS(ref) == ref)
     return;
@@ -69,9 +81,10 @@ static void reachable_object_i(VALUE ref, struct ObjectData *data)
   data->references[data->reference_count - 1] = (void *)ref;
 }
 
-static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
+static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
 
-  struct ObjectData *data = initialize_object_data();
+  // Get next available slot from page
+  rbkit_object_data *data = initialize_object_data(dump);
   //Set object id
   data->object_id = (void *)obj;
 
@@ -92,17 +105,8 @@ static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
   }
 
   set_size(obj, data);
-
-  //Put it in the linked list
-  if(dump->first == NULL) {
-    dump->first = data;
-    dump->last = data;
-    dump->size = 1;
-  } else {
-    dump->last->next = data;
-    dump->last = data;
-    dump->size++;
-  }
+  dump->object_count++;
+  dump->last->count++;
 }
 
 /*
@@ -111,7 +115,7 @@ static void dump_heap_object(VALUE obj, struct ObjectDump * dump) {
  */
 static void root_object_i(const char *category, VALUE obj, void *dump_data)
 {
-  dump_root_object(obj, category, (struct ObjectDump *)dump_data);
+  dump_root_object(obj, category, (rbkit_object_dump *)dump_data);
 }
 
 /*
@@ -125,22 +129,22 @@ static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
   for (; obj != (VALUE)vend; obj += stride) {
     klass = RBASIC_CLASS(obj);
     if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-      dump_heap_object(obj, (struct ObjectDump *)dump_data);
+      dump_heap_object(obj, (rbkit_object_dump *)dump_data);
     }
   }
   return 0;
 }
 
-static void collect_root_objects(struct ObjectDump * dump) {
+static void collect_root_objects(rbkit_object_dump * dump) {
   rb_objspace_reachable_objects_from_root(root_object_i, (void *)dump);
 }
 
-static void collect_heap_objects(struct ObjectDump * dump) {
+static void collect_heap_objects(rbkit_object_dump * dump) {
   rb_objspace_each_objects(heap_obj_i, (void *)dump);
 }
 
-struct ObjectDump * get_object_dump(st_table * object_table) {
-  struct ObjectDump * dump = (struct ObjectDump *) malloc(sizeof(struct ObjectDump));
+rbkit_object_dump * get_object_dump(st_table * object_table) {
+  rbkit_object_dump * dump = (rbkit_object_dump *) malloc(sizeof(rbkit_object_dump));
   dump->object_table = object_table;
   dump->first = NULL;
   dump->last = NULL;
