@@ -34,10 +34,16 @@ a good place to put this would be at the end of `config/boot.rb`.
 
 #### Install zmq and msgpack
 
+On OSX - Using `homebrew` following command should suffice:
+
 ```
 ~> brew install zeromq
 ~> brew install msgpack
 ```
+
+On Linux - we recommend to download these libraries
+from their respective home pages and manually compiling
+and installing.
 
 At some point, we will bundle these two C libraries during gem installations
 but for now, this has to suffice.
