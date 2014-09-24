@@ -1,5 +1,5 @@
-![Rbkit logo](logo.png)Rbkit
-============================
+<img src="./logo.png" height="30px" /> Rbkit
+============================================
 
 `rbkit` is a Ruby gem that plugs into your ruby process, taps profiling data
 in realtime and sends it across the wire to the [rbkit-client](https://github.com/code-mancers/rbkit-client)
