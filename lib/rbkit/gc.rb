@@ -17,16 +17,16 @@ module Rbkit
     #   [heap_free_slots] Count of free slots in all pages
     #   [heap_final_slots] Count of zombie objects
     #   [heap_swept_slots] Count of slots swept after last GC
-    #   [:old_objects] Count of old generation objects
-    #   [:old_objects_limit] Old generation object count after which GC is triggered
-    #   [:total_allocated_objects] Number of created objects in the lifetime of the process
-    #   [:total_freed_objects] Number of freed objects in the lifetime of the process
-    #   [:malloc_increase_bytes] Malloc'ed bytes since last GC
-    #   [:malloc_increase_bytes_limit] Minor GC is triggered when malloc_increase_bytes exceeds this value
-    #   [:oldmalloc_increase_bytes] Malloc'ed bytes for old objects since last major GC
-    #   [:oldmalloc_increase_bytes_limit] Major GC is triggered with oldmalloc_increase_bytes exceeds this value
-    #   [:total_heap_size] heap_allocated_pages * max slots per page * size of one slot
-    #   [:total_memsize] ObjectSpace.memsize_of_all
+    #   [old_objects] Count of old generation objects
+    #   [old_objects_limit] Old generation object count after which GC is triggered
+    #   [total_allocated_objects] Number of created objects in the lifetime of the process
+    #   [total_freed_objects] Number of freed objects in the lifetime of the process
+    #   [malloc_increase_bytes] Malloc'ed bytes since last GC
+    #   [malloc_increase_bytes_limit] Minor GC is triggered when malloc_increase_bytes exceeds this value
+    #   [oldmalloc_increase_bytes] Malloc'ed bytes for old objects since last major GC
+    #   [oldmalloc_increase_bytes_limit] Major GC is triggered with oldmalloc_increase_bytes exceeds this value
+    #   [total_heap_size] heap_allocated_pages * max slots per page * size of one slot
+    #   [total_memsize] ObjectSpace.memsize_of_all
     def self.stat
       stats = {}
       data = ::GC.stat
