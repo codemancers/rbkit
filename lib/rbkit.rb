@@ -1,5 +1,6 @@
 require "rbkit_tracer"
 require "rbkit/timer"
+require "rbkit/gc"
 require "objspace"
 
 # Class implements user friendly interface in pure Ruby for profiler.
@@ -14,18 +15,7 @@ module Rbkit
       @stop_thread = false
       @server_running = false
       @gc_stats_timer = Rbkit::Timer.new(5) do
-        data = GC.stat
-        no_of_allocated_pages = 0
-        if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("2.2.0")
-          no_of_allocated_pages = data[:heap_allocated_pages]
-        else
-          no_of_allocated_pages = data[:heap_used]
-        end
-        max_objects_per_page = GC::INTERNAL_CONSTANTS[:HEAP_OBJ_LIMIT]
-        size_of_one_obj = GC::INTERNAL_CONSTANTS[:RVALUE_SIZE]
-        data[:total_heap_size] = no_of_allocated_pages * max_objects_per_page *
-          size_of_one_obj
-        data[:total_memsize] = ObjectSpace.memsize_of_all
+        data = Rbkit::GC.stat
         Rbkit.send_hash_as_event(data, "gc_stats")
       end
       @message_dispatch_timer = Rbkit::Timer.new(1) do
