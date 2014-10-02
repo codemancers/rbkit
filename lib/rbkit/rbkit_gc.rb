@@ -1,7 +1,7 @@
 require "objspace"
 
 module Rbkit
-  class GC
+  class RbkitGC
     # Returns a standardized hash containing the data
     # returned by GC.stat
     # @return [Hash] Keys :
@@ -29,7 +29,7 @@ module Rbkit
     #   [total_memsize] ObjectSpace.memsize_of_all
     def self.stat
       stats = {}
-      data = ::GC.stat
+      data = GC.stat
 
       stats[:count] = data[:count]
       stats[:minor_gc_count] = data[:minor_gc_count]
@@ -68,8 +68,8 @@ module Rbkit
       end
 
       no_of_allocated_pages = stats[:heap_allocated_pages] rescue 0
-      max_objects_per_page = ::GC::INTERNAL_CONSTANTS[:HEAP_OBJ_LIMIT]
-      size_of_one_obj = ::GC::INTERNAL_CONSTANTS[:RVALUE_SIZE]
+      max_objects_per_page = GC::INTERNAL_CONSTANTS[:HEAP_OBJ_LIMIT]
+      size_of_one_obj = GC::INTERNAL_CONSTANTS[:RVALUE_SIZE]
       stats[:total_heap_size] = no_of_allocated_pages * max_objects_per_page *
         size_of_one_obj
       stats[:total_memsize] = ObjectSpace.memsize_of_all
