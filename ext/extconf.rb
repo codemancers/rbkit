@@ -22,32 +22,55 @@ def check_and_install_with_homebrew(package)
   end
 end
 
-def download_file(url, target)
+def download_file(url)
   if find_executable('curl')
-    system("curl -o #{target} #{url}")
+    system("curl -L -O #{url}")
   elsif find_executable('wget')
-    system("wget -O #{target} #{url}")
+    system("wget #{url}")
   else
     fail "Cannot download #{url}. You need either curl or wget to continue"
   end
 end
 
 def download_and_install_zeromq_from_source
-  ['libtool', 'autoconf', 'automake'].each do |executable|
-    fail "#{executable} needed by zeromq not found." unless find_executable(executable)
-  end
-  puts green("Downloading and installing zeromq from source")
   url = "http://download.zeromq.org/zeromq-4.0.4.tar.gz"
   filename = "zeromq-4.0.4.tar.gz"
   basename = File.basename(filename, '.tar.gz')
-  download_file(url, filename)
-  system("tar zxvf #{filename}")
   dist_path = "#{CWD}/#{basename}/dist"
-  Dir.chdir('zeromq-4.0.4') do
-    system("./configure --prefix='#{dist_path}'")
-    system("make && make install")
+
+  unless File.exists? "#{dist_path}/lib/libzmq.a"
+    ['libtool', 'autoconf', 'automake'].each do |executable|
+      fail "#{executable} needed by zeromq not found." unless find_executable(executable)
+    end
+    puts green("Downloading and installing zeromq from source")
+    download_file(url)
+    system("tar zxvf #{filename}")
+    Dir.chdir(basename) do
+      system("./configure --prefix='#{dist_path}'")
+      system("make && make install")
+    end
   end
   FileUtils.cp "#{dist_path}/lib/libzmq.a", "#{CWD}/libzmq.a"
+  $INCFLAGS[0,0] = "-I#{dist_path}/include "
+end
+
+def download_and_install_msgpack_from_source
+  url = "https://github.com/msgpack/msgpack-c/releases/download/cpp-0.5.9/msgpack-0.5.9.tar.gz"
+  filename = "msgpack-0.5.9.tar.gz"
+  basename = File.basename(filename, '.tar.gz')
+  dist_path = "#{CWD}/#{basename}/dist"
+
+  unless File.exists? "#{dist_path}/lib/libmsgpack.a"
+    puts green("Downloading and installing msgpack from source")
+    download_file(url)
+    system("tar zxvf #{filename}")
+    Dir.chdir(basename) do
+      system("./configure --prefix='#{dist_path}'")
+      system("make && make install")
+    end
+  end
+
+  FileUtils.cp "#{dist_path}/lib/libmsgpack.a", "#{CWD}/libmsgpack.a"
   $INCFLAGS[0,0] = "-I#{dist_path}/include "
 end
 
@@ -78,13 +101,18 @@ end
 
 # Install msgpack if not available
 unless(have_library("msgpack") && have_header("msgpack.h"))
-  if RUBY_PLATFORM =~ /darwin/
+  if Gem.win_platform?
+    puts red("On Windows? You'll have to install msgpack by yourself.")
+  elsif RUBY_PLATFORM =~ /darwin/
     unless check_and_install_with_homebrew("msgpack")
-      # Download and install msgpack
+      download_and_install_msgpack_from_source
     end
+  else
+    download_and_install_msgpack_from_source
   end
-  unless(have_library("msgpack") && have_header("msgpack.h"))
-    fail 'msgpack build failed'
+
+  unless have_library('msgpack') and have_header('msgpack.h')
+    fail 'msgpack build failed.'
   end
 end
 

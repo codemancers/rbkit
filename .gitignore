@@ -16,3 +16,5 @@ Gemfile.lock
 *.xcodeproj
 /ext/libzmq.a
 /ext/zeromq*
+/ext/libmsgpack.a
+/ext/msgpack*
