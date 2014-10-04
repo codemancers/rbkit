@@ -364,6 +364,7 @@ static VALUE stop_stat_server() {
   zmq_close(zmq_response_socket);
   zmq_ctx_destroy(zmq_context);
   free(logger);
+  logger = 0;
   return Qnil;
 }
 
@@ -564,6 +565,7 @@ static VALUE send_messages() {
 
 static VALUE enable_test_mode() {
   Init_rbkit_test_helper();
+  return Qnil;
 }
 
 void Init_rbkit_tracer(void) {

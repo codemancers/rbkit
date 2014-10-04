@@ -8,8 +8,12 @@ static VALUE noop_send_messages() {
 
 static VALUE get_queued_messages() {
   msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_event_collection_message();
-  fprintf(stderr, "Queued message size = %d\n", sbuf->size);
-  /*return rb_str_new(sbuf->data, sbuf->size);*/
+  if(sbuf && sbuf->size > 0) {
+    VALUE str = rb_str_new(sbuf->data, sbuf->size);
+    message_list_clear();
+    msgpack_sbuffer_destroy(sbuf);
+    return str;
+  }
   return Qnil;
 }
 
