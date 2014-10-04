@@ -7,7 +7,8 @@ static VALUE noop_send_messages() {
 }
 
 static VALUE get_queued_messages() {
-  msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_event_collection_message();
+  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  get_event_collection_message(sbuf);
   if(sbuf && sbuf->size > 0) {
     VALUE str = rb_str_new(sbuf->data, sbuf->size);
     message_list_clear();
