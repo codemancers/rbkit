@@ -307,14 +307,16 @@ int tracer_string_send(void *socket, const char *message) {
 
 static VALUE poll_for_request() {
   // Wait for 100 millisecond and check if there is a message
-  // we can't wait here indefenitely because ruby is not aware this is a 
+  // we can't wait here indefenitely because ruby is not aware this is a
   // blocking operation. Remember ruby releases GVL in a thread
   // whenever it encounters a known blocking operation.
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
     tracer_string_send(zmq_response_socket, "ok");
-    return rb_str_new_cstr(message);
+    VALUE command_ruby_string = rb_str_new_cstr(message);
+    free(message);
+    return command_ruby_string;
   } else {
     return Qnil;
   }
@@ -358,7 +360,7 @@ static VALUE stop_stat_server() {
   st_foreach(logger->str_table, free_keys_i, 0);
   st_clear(logger->str_table);
 
-  msgpack_sbuffer_destroy(logger->sbuf);
+  msgpack_sbuffer_free(logger->sbuf);
   msgpack_packer_free(logger->msgpacker);
   zmq_close(zmq_publisher);
   zmq_close(zmq_response_socket);
@@ -430,7 +432,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 
   rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
   add_message(buffer);
-  msgpack_sbuffer_destroy(buffer);
+  msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
   return Qnil;
 }
@@ -452,88 +454,94 @@ static VALUE send_objectspace_dump() {
   msgpack_sbuffer* buffer = msgpack_sbuffer_new();
   msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  struct ObjectDump * dump = get_object_dump(logger->object_table);
+  rbkit_object_dump * dump = get_object_dump(logger->object_table);
   pack_event_header(pk, "object_space_dump", 3);
   pack_string(pk, "payload");
   // Set size of array to hold all objects
-  msgpack_pack_array(pk, dump->size);
+  msgpack_pack_array(pk, dump->object_count);
 
   // Iterate through all object data
-  struct ObjectData * data = dump->first ;
-  for(;data != NULL; data = data->next ) {
-    /* ObjectData is a map that looks like this :
-     * {
-     *   object_id: <OBJECT_ID_IN_HEX>,
-     *   class: <CLASS_NAME>,
-     *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
-     *   file: <FILE_PATH>,
-     *   line: <LINE_NO>,
-     *   size: <SIZE>
-     * }
-     */
+  rbkit_object_dump_page * page = dump->first ;
+  while(page != NULL) {
+    rbkit_object_data *data;
+    size_t i = 0;
+    for(;i < page->count; i++) {
+      data = &(page->data[i]);
+      /* Object dump is a map that looks like this :
+       * {
+       *   object_id: <OBJECT_ID_IN_HEX>,
+       *   class: <CLASS_NAME>,
+       *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
+       *   file: <FILE_PATH>,
+       *   line: <LINE_NO>,
+       *   size: <SIZE>
+       * }
+       */
 
+      msgpack_pack_map(pk, 6);
 
-    msgpack_pack_map(pk, 6);
+      // Key1 : "object_id"
+      pack_string(pk, "object_id");
 
-    // Key1 : "object_id"
-    pack_string(pk, "object_id");
+      // Value1 : pointer address of object
+      char * object_id;
+      asprintf(&object_id, "%p", data->object_id);
+      pack_string(pk, object_id);
+      free(object_id);
 
-    // Value1 : pointer address of object
-    char * object_id;
-    asprintf(&object_id, "%p", data->object_id);
-    pack_string(pk, object_id); 
-    free(object_id);
+      // Key2 : "class_name"
+      pack_string(pk, "class_name");
 
-    // Key2 : "class_name"
-    pack_string(pk, "class_name");
-
-    // Value2 : Class name of object
-    if(data->class_name == NULL) {
-      msgpack_pack_nil(pk);
-    } else {
-      pack_string(pk, data->class_name);
-    }
-
-    // Key3 : "references"
-    pack_string(pk, "references");
-
-    // Value3 : References held by the object
-    msgpack_pack_array(pk, data->reference_count);
-    if(data->reference_count != 0) {
-      size_t count = 0;
-      for(; count < data->reference_count; count++ ) {
-        char * object_id;
-        asprintf(&object_id, "%p", data->references[count]);
-        pack_string(pk, object_id);
+      // Value2 : Class name of object
+      if(data->class_name == NULL) {
+        msgpack_pack_nil(pk);
+      } else {
+        pack_string(pk, data->class_name);
       }
-      free(data->references);
+
+      // Key3 : "references"
+      pack_string(pk, "references");
+
+      // Value3 : References held by the object
+      msgpack_pack_array(pk, data->reference_count);
+      if(data->reference_count != 0) {
+        size_t count = 0;
+        for(; count < data->reference_count; count++ ) {
+          char * object_id;
+          asprintf(&object_id, "%p", data->references[count]);
+          pack_string(pk, object_id);
+          free(object_id);
+        }
+        free(data->references);
+      }
+
+      // Key4 : "file"
+      pack_string(pk, "file");
+
+      // Value4 : File path where object is defined
+      pack_string(pk, data->file);
+
+      // Key5 : "line"
+      pack_string(pk, "line");
+
+      // Value5 : Line no where object is defined
+      if(data->line == 0)
+        msgpack_pack_nil(pk);
+      else
+        msgpack_pack_unsigned_long(pk, data->line);
+
+      // Key6 : "size"
+      pack_string(pk, "size");
+
+      // Value6 : Size of the object in memory
+      if(data->size == 0)
+        msgpack_pack_nil(pk);
+      else
+        msgpack_pack_uint32(pk, data->size);
     }
-
-    // Key4 : "file"
-    pack_string(pk, "file");
-
-    // Value4 : File path where object is defined
-    pack_string(pk, data->file);
-
-    // Key5 : "line"
-    pack_string(pk, "line");
-
-    // Value5 : Line no where object is defined
-    if(data->line == 0)
-      msgpack_pack_nil(pk);
-    else
-      msgpack_pack_unsigned_long(pk, data->line);
-
-    // Key6 : "size"
-    pack_string(pk, "size");
-
-    // Value6 : Size of the object in memory
-    if(data->size == 0)
-      msgpack_pack_nil(pk);
-    else
-      msgpack_pack_uint32(pk, data->size);
-
-    free(data);
+    rbkit_object_dump_page * prev = page;
+    page = page->next;
+    free(prev);
   }
 
   // Send packed message over zmq
@@ -541,7 +549,7 @@ static VALUE send_objectspace_dump() {
 
   //Cleanup
   free(dump);
-  msgpack_sbuffer_destroy(buffer);
+  msgpack_sbuffer_free(buffer);
   msgpack_packer_free(pk);
 
   return Qnil;
@@ -553,13 +561,14 @@ static VALUE send_objectspace_dump() {
  */
 static VALUE send_messages() {
   //Get all aggregated messages as payload of a single event.
-  msgpack_sbuffer * sbuf = (msgpack_sbuffer *)get_event_collection_message();
+  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  get_event_collection_message(sbuf);
   //Send the msgpack array over zmq PUB socket
   if(sbuf && sbuf->size > 0)
     zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
-  msgpack_sbuffer_destroy(sbuf);
+  msgpack_sbuffer_free(sbuf);
   return Qnil;
 }
 

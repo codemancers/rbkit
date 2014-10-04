@@ -1,5 +1,7 @@
 require "rbkit_tracer"
 require "rbkit/timer"
+require "rbkit/rbkit_gc"
+require "objspace"
 
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
@@ -13,7 +15,7 @@ module Rbkit
       @stop_thread = false
       @server_running = false
       @gc_stats_timer = Rbkit::Timer.new(5) do
-        data = GC.stat
+        data = RbkitGC.stat
         Rbkit.send_hash_as_event(data, "gc_stats")
       end
       @message_dispatch_timer = Rbkit::Timer.new(1) do

@@ -1,6 +1,6 @@
 require 'zmq'
 require 'msgpack'
-require 'tempfile'
+require 'pp'
 
 Thread.abort_on_exception = true
 
@@ -12,7 +12,7 @@ commands = [
   'trigger_gc'
 ]
 
-output_file = Tempfile.new('rbkit')
+output_file = File.open("/tmp/rbkit.log", "w")
 puts "Writing output to file #{output_file.path}"
 ctx = ZMQ::Context.new
 
@@ -46,10 +46,9 @@ begin
   loop do
     message = socket.recv
     unpacked_message = MessagePack.unpack(message)
-    output_file.puts unpacked_message
+    PP.pp(unpacked_message, output_file)
     output_file.flush
   end
 ensure
   output_file.close
-  output_file.unlink
 end

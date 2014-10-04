@@ -2,6 +2,7 @@ require 'mkmf'
 if ENV['RBKIT_DEV']
   $stderr.puts "Dev environment enabled."
   $CFLAGS << ' -g'
+  $defs << '-DRBKIT_DEV'
 end
 if(have_func('rb_postponed_job_register_one') &&
   have_func('rb_profile_frames') &&
