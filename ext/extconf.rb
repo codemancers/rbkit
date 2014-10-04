@@ -46,7 +46,7 @@ def download_and_install_zeromq_from_source
     download_file(url)
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
-      system("./configure CFLAGS='-fPIC' --prefix='#{dist_path}'")
+      system("./configure CPPFLAGS='-fPIC' --prefix='#{dist_path}'")
       system("make && make install")
     end
   end
