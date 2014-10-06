@@ -13,6 +13,7 @@ if ENV['RBKIT_DEV']
 end
 
 def check_and_install_with_homebrew(package)
+  return false if ENV['RBKIT_NO_HOMEBREW']
   puts green("Looks like you're on OSX. Do you want to use homebrew to install #{package}? (y/Y/n/N) :")
   use_brew = gets.chomp
   if(use_brew.downcase == "y")
@@ -94,7 +95,7 @@ unless(have_library("zmq") && have_header("zmq.h"))
     download_and_install_zeromq_from_source
   end
 
-  unless have_library('zmq') and have_header('zmq.h')
+  unless have_library('stdc++') and have_library('zmq') and have_header('zmq.h')
     fail 'zeromq build failed.'
   end
 end
