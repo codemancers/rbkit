@@ -1,6 +1,9 @@
 <img src="./logo.png" height="30px" /> Rbkit
 ============================================
 
+[![Gem Version](https://badge.fury.io/rb/rbkit.svg)](http://badge.fury.io/rb/rbkit)
+[![Build Status](https://travis-ci.org/code-mancers/rbkit.svg?branch=tests)](https://travis-ci.org/code-mancers/rbkit)
+
 `rbkit` is a Ruby gem that plugs into your ruby process, taps profiling data
 in realtime and sends it across the wire to the [rbkit-client](https://github.com/code-mancers/rbkit-client)
 as packed messages.
@@ -30,9 +33,22 @@ Rbkit.start_profiling
 If using Rails, and you want to measure everything from the boot process,
 a good place to put this would be at the end of `config/boot.rb`.
 
+You can pass the following keyword arguments to `Rbkit.start_profiling` :
+
+|argument             | valid values | default value | description                                    |
+|---------------------|--------------|---------------|------------------------------------------------|
+|enable_object_trace  | true/false   | true          | Enables object creation/deletion events        |
+|enable_gc_stats      | true/false   | true          | Enables GC stats which is sent every 5 seconds |
+
+
 ## Development
 
 #### Install zmq and msgpack
+
+If zmq and msgpack are not installed, Rbkit automatically downloads
+and installs the two libraries from source during gem installation.
+But if you are developing Rbkit, it makes sense to have these
+preinstalled:
 
 On OSX - Using `homebrew` following command should suffice:
 
@@ -44,9 +60,6 @@ On OSX - Using `homebrew` following command should suffice:
 On Linux - we recommend to download these libraries
 from their respective home pages and manually compiling
 and installing.
-
-At some point, we will bundle these two C libraries during gem installations
-but for now, this has to suffice.
 
 #### Clone the repo
 
@@ -66,7 +79,7 @@ This compiles the C extension with debug flag and also sets a macro named
 
 Two ways to do this :
 
-##### Using rake-compiler
+##### Using rake
 
 ```
 cd <RBKIT_PATH>
@@ -81,7 +94,7 @@ bundle exec rake compile
 cd <RBKIT_PATH/ext>
 ruby extconf.rb
 make
-# Create a symlink at `lib/rbkit_tracer.bundle`
+# Create a symlink at `lib/rbkit_tracer.bundle` (or .so if on linux)
 # that points to `ext/rbkit_tracer.bundle`
 # (in order to use `rbkit` gem in Gemfiles using `path` option)
 ```
