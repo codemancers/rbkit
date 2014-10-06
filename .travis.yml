@@ -1,0 +1,17 @@
+language: ruby
+bundler_args: "--without exclude_in_travis"
+env: RBKIT_NO_HOMEBREW=true
+rvm:
+- 2.1.3
+- 2.2.0-preview1
+- ruby-head
+os:
+- linux
+- osx
+notifications:
+  hipchat:
+    rooms:
+      secure: KdhzB9VueLEJp9p/ZUFaXAMO0u1CEbT0sjdRt10jqseAJCld9CAK1KAb1f/mNO/+cbVd+7W9UdHA0cEGUZ9dLP9Mcpmy31QxOJSITUCrRiLOF1ti13Lq4WHpMM46Tz6p7vVYd4zpPj9Mup+lCTGOeCovReX+neIoZw0UjDg9oGs=
+    template:
+      - '%{result}: %{repository_slug}#%{branch} - <a href="%{compare_url}">%{commit}</a>(%{commit_message}) by %{author} (<a href="%{build_url}">Details</a>)'
+    format: html

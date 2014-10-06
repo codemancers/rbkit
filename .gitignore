@@ -14,3 +14,7 @@ Gemfile.lock
 /mkmf.log
 /coverage
 *.xcodeproj
+/ext/libzmq.a
+/ext/zeromq*
+/ext/libmsgpack.a
+/ext/msgpack*

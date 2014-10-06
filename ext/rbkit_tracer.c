@@ -9,6 +9,7 @@
 #include "rbkit_tracer.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
+#include "rbkit_test_helper.h"
 #include <sys/time.h>
 
 static const char *event_names[] = {
@@ -365,6 +366,7 @@ static VALUE stop_stat_server() {
   zmq_close(zmq_response_socket);
   zmq_ctx_destroy(zmq_context);
   free(logger);
+  logger = 0;
   return Qnil;
 }
 
@@ -570,6 +572,11 @@ static VALUE send_messages() {
   return Qnil;
 }
 
+static VALUE enable_test_mode() {
+  Init_rbkit_test_helper();
+  return Qnil;
+}
+
 void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
@@ -580,4 +587,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
+  rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
 }
