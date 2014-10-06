@@ -21,15 +21,19 @@ Add the following to the project's Gemfiles
 ```
 gem 'rbkit', path: <RBKIT_PATH>`
 ```
+
+
 and run `bundle install`
 
 #### Inject `rbkit` into code
 
 Wherever you want to start profiling, add the following :
-```
+
+```ruby
 require 'rbkit'
 Rbkit.start_profiling
 ```
+
 If using Rails, and you want to measure everything from the boot process,
 a good place to put this would be at the end of `config/boot.rb`.
 
