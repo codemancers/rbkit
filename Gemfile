@@ -3,8 +3,7 @@ source "https://rubygems.org"
 gem "msgpack"
 
 group :exclude_in_travis do
-  gem 'pry'
-  gem 'pry-debugger'
+  gem 'pry-byebug'
   gem 'rbczmq'
 end
 
