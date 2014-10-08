@@ -7,6 +7,14 @@ static void* message_array;
 static size_t used_memsize;
 static size_t total_capacity;
 static size_t no_of_messages;
+static unsigned long message_counter = 0;
+static unsigned long max_unsigned_long = -1;
+
+static unsigned long get_message_counter() {
+  if(message_counter == max_unsigned_long)
+    message_counter = 0;
+  return message_counter++;
+}
 
 static int has_enough_space_for(size_t size) {
   return ((total_capacity - used_memsize) >= size);
@@ -53,7 +61,9 @@ void add_message(msgpack_sbuffer *buffer) {
 void get_event_collection_message(msgpack_sbuffer *sbuf) {
   if(no_of_messages > 0) {
     msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
-    pack_event_header(pk, "event_collection", 3);
+    pack_event_header(pk, "event_collection", 4);
+    pack_string(pk, "message_counter");
+    msgpack_pack_unsigned_long(pk, get_message_counter());
     pack_string(pk, "payload");
     msgpack_pack_array(pk, no_of_messages);
     sbuf->data = realloc(sbuf->data, used_memsize + sbuf->size);
