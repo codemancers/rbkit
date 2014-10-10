@@ -25,6 +25,23 @@ gem 'rbkit', path: <RBKIT_PATH>`
 
 and run `bundle install`
 
+#### Installation without Rubygems
+
+You can also install `rbkit` without bundler/rubygems. This can
+be useful, if you are profiling a Ruby app where you want to measure
+overhead of Rubygems/Bundler.
+
+Just clone the repository or download from a release tag and run:
+
+```
+# Run from root of rbkit directory.
+~> ruby setup.rb
+```
+
+This should install `rbkit`
+in ruby's `site_dir` and then you don't need `rbkit` added to your
+`Gemfile` for requiring `rbkit`.
+
 #### Inject `rbkit` into code
 
 Wherever you want to start profiling, add the following :
