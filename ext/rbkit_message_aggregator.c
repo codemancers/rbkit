@@ -8,11 +8,8 @@ static size_t used_memsize;
 static size_t total_capacity;
 static size_t no_of_messages;
 static unsigned long message_counter = 0;
-static unsigned long max_unsigned_long = -1;
 
 static unsigned long get_message_counter() {
-  if(message_counter == max_unsigned_long)
-    message_counter = 0;
   return message_counter++;
 }
 
