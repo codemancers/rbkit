@@ -7,6 +7,9 @@
 //
 
 #include "rbkit_tracer.h"
+#include "rbkit_allocation_info.h"
+#include "rbkit_event.h"
+#include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
 #include "rbkit_test_helper.h"
@@ -167,47 +170,16 @@ static void delete_unique_str(st_table *tbl, const char *str) {
 static void newobj_i(VALUE tpval, void *data) {
   struct gc_hooks * arg = (struct gc_hooks *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
+
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
-  VALUE path = rb_tracearg_path(tparg);
-  VALUE line = rb_tracearg_lineno(tparg);
-  VALUE method_id = rb_tracearg_method_id(tparg);
-  VALUE defined_klass = rb_tracearg_defined_class(tparg);
+  char *class_name = NULL;
+  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
+    class_name = rb_class2name(klass);
 
-  struct allocation_info *info;
-  const char *path_cstr = RTEST(path) ? make_unique_str(arg->str_table, RSTRING_PTR(path), RSTRING_LEN(path)) : 0;
-  VALUE class_path = (RTEST(defined_klass) && !OBJ_FROZEN(defined_klass)) ? rb_class_path_cached(defined_klass) : Qnil;
-  const char *class_path_cstr = RTEST(class_path) ? make_unique_str(arg->str_table, RSTRING_PTR(class_path), RSTRING_LEN(class_path)) : 0;
-
-  if (st_lookup(arg->object_table, (st_data_t)obj, (st_data_t *)&info)) {
-    /* reuse info */
-    delete_unique_str(arg->str_table, info->path);
-    delete_unique_str(arg->str_table, info->class_path);
-  }
-  else {
-    info = (struct allocation_info *)ruby_xmalloc(sizeof(struct allocation_info));
-  }
-
-  info->path = path_cstr;
-  info->line = NUM2INT(line);
-  info->method_id = method_id;
-  info->class_path = class_path_cstr;
-  info->generation = rb_gc_count();
-  st_insert(arg->object_table, (st_data_t)obj, (st_data_t)info);
-
-  msgpack_sbuffer_clear(arg->sbuf);
-  pack_event_header(arg->msgpacker, event_names[3], 3);
-  pack_string(arg->msgpacker, "payload");
-  msgpack_pack_map(arg->msgpacker, 2);
-  pack_string(arg->msgpacker, "object_id");
-  pack_pointer(arg->msgpacker, obj);
-  pack_string(arg->msgpacker, "class");
-  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    pack_string(arg->msgpacker, rb_class2name(klass));
-
-  } else {
-    msgpack_pack_nil(arg->msgpacker);
-  }
+  rbkit_obj_created_event *event = new_rbkit_obj_created_event(obj, class_name, info);
+  pack_event(event, arg->sbuf, arg->msgpacker);
   add_message(arg->sbuf);
 }
 

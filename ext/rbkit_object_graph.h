@@ -1,5 +1,6 @@
 #ifndef RBKIT_OBJECT_GRAPH
 #define RBKIT_OBJECT_GRAPH
+#include <ruby.h>
 
 #define RBKIT_OBJECT_DUMP_PAGE_SIZE 1000
 
