@@ -20,7 +20,7 @@ static void pack_timestamp(msgpack_packer *packer) {
 }
 
 
-static void pack_event_header(msgpack_packer* packer, rbkit_event_type *event_type)
+static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
 {
   pack_string(packer, "event_type");
   msgpack_pack_int(packer, event_type);
