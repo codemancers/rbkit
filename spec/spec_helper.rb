@@ -5,6 +5,7 @@
 #
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 require 'rbkit'
+require 'support/object_id_helper'
 Rbkit.enable_test_mode
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
