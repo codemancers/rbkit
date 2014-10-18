@@ -13,6 +13,7 @@
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
 #include "rbkit_test_helper.h"
+#include "pack_helper.h"
 #include <sys/time.h>
 
 static const char *event_names[] = {
@@ -23,40 +24,17 @@ static const char *event_names[] = {
   "obj_destroyed"
 };
 
-static struct gc_hooks *logger;
+static rbkit_logger *logger;
 static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 
-void pack_event_header(msgpack_packer* packer, const char *event_type, int map_size)
-{
-  msgpack_pack_map(packer, map_size);
-  pack_string(packer, "event_type");
-  pack_string(packer, event_type);
-
-  pack_string(packer, "timestamp");
-  pack_timestamp(packer);
-}
-
-
-static void trace_gc_invocation(void *data, int event_index) {
-  if (event_index == 0) {
-    msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index], 2);
-    add_message(logger->sbuf);
-  } else if (event_index == 2) {
-    msgpack_sbuffer_clear(logger->sbuf);
-    pack_event_header(logger->msgpacker, event_names[event_index], 2);
-    add_message(logger->sbuf);
-  }
-}
-
-static struct gc_hooks * get_trace_logger() {
+static rbkit_logger * get_trace_logger() {
   int i = 0;
   if (logger == 0) {
-    logger = ALLOC_N(struct gc_hooks, 1);
+    logger = ALLOC_N(rbkit_logger, 1);
     logger->enabled = Qfalse;
     logger->newobj_trace = 0;
     logger->freeobj_trace = 0;
@@ -64,10 +42,6 @@ static struct gc_hooks * get_trace_logger() {
     logger->object_table = st_init_numtable();
     logger->str_table = st_init_strtable();
 
-    for (i = 0; i < 3; i++) {
-      logger->funcs[i] = trace_gc_invocation;
-      logger->args[i] = (void *)event_names[i];
-    }
     logger->sbuf = msgpack_sbuffer_new();
     logger->msgpacker = msgpack_packer_new(logger->sbuf, msgpack_sbuffer_write);
     logger->data = 0;
@@ -75,26 +49,37 @@ static struct gc_hooks * get_trace_logger() {
   return logger;
 }
 
-
 static void
 gc_start_i(VALUE tpval, void *data)
 {
-  struct gc_hooks *hooks = (struct gc_hooks *)data;
-  (*hooks->funcs[0])(hooks->args[0], 0);
+  rbkit_logger * arg = (rbkit_logger *)data;
+  rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
+  event->event_type = gc_start;
+  pack_event(event, arg->sbuf, arg->msgpacker);
+  free(event);
+  add_message(arg->sbuf);
 }
 
 static void
 gc_end_mark_i(VALUE tpval, void *data)
 {
-  struct gc_hooks *hooks = (struct gc_hooks *)data;
-  (*hooks->funcs[1])(hooks->args[1], 1);
+  rbkit_logger * arg = (rbkit_logger *)data;
+  rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
+  event->event_type = gc_end_m;
+  pack_event(event, arg->sbuf, arg->msgpacker);
+  free(event);
+  add_message(arg->sbuf);
 }
 
 static void
 gc_end_sweep_i(VALUE tpval, void *data)
 {
-  struct gc_hooks *hooks = (struct gc_hooks *)data;
-  (*hooks->funcs[2])(hooks->args[2], 2);
+  rbkit_logger * arg = (rbkit_logger *)data;
+  rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
+  event->event_type = gc_end_s;
+  pack_event(event, arg->sbuf, arg->msgpacker);
+  free(event);
+  add_message(arg->sbuf);
 }
 
 static void
@@ -111,64 +96,9 @@ create_gc_hooks(void)
   for (i=0; i<3; i++) rb_gc_register_mark_object(logger->hooks[i]);
 }
 
-void pack_pointer(msgpack_packer *packer, VALUE object_id) {
-  char *object_string;
-  asprintf(&object_string, "%p", object_id);
-  pack_string(packer, object_string);
-  free(object_string);
-}
-/*
- * make_unique_str helps to reuse memory by allocating memory for a string
- * only once and keeping track of how many times that string is referenced.
- * It does so by creating a map of strings to their no of references.
- * A new map is created for a string on its first use, and for further usages
- * the reference count is incremented.
- */
-static const char * make_unique_str(st_table *tbl, const char *str, long len) {
-  if (!str) {
-    return NULL;
-  }
-  else {
-    st_data_t n;
-    char *result;
-
-    if (st_lookup(tbl, (st_data_t)str, &n)) {
-      st_insert(tbl, (st_data_t)str, n+1);
-      st_get_key(tbl, (st_data_t)str, (st_data_t *)&result);
-    }
-    else {
-      result = (char *)ruby_xmalloc(len+1);
-      strncpy(result, str, len);
-      result[len] = 0;
-      st_add_direct(tbl, (st_data_t)result, 1);
-    }
-    return result;
-  }
-}
-
-/*
- * Used to free allocation of string when it's not referenced anymore.
- * Decrements the reference count of a string if it's still used, else
- * the map is removed completely.
- */
-static void delete_unique_str(st_table *tbl, const char *str) {
-  if (str) {
-    st_data_t n;
-
-    st_lookup(tbl, (st_data_t)str, &n);
-    if (n == 1) {
-      st_delete(tbl, (st_data_t *)&str, 0);
-      ruby_xfree((char *)str);
-    }
-    else {
-      st_insert(tbl, (st_data_t)str, n-1);
-    }
-  }
-}
-
 // Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
-  struct gc_hooks * arg = (struct gc_hooks *)data;
+  rbkit_logger * arg = (rbkit_logger *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
 
@@ -180,6 +110,7 @@ static void newobj_i(VALUE tpval, void *data) {
 
   rbkit_obj_created_event *event = new_rbkit_obj_created_event(obj, class_name, info);
   pack_event(event, arg->sbuf, arg->msgpacker);
+  free(event);
   add_message(arg->sbuf);
 }
 
@@ -187,24 +118,15 @@ static void newobj_i(VALUE tpval, void *data) {
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
+  rbkit_logger *arg = (rbkit_logger *)data;
 
-  struct gc_hooks *arg = (struct gc_hooks *)data;
-  struct allocation_info *info;
+  // Delete allocation info of freed object
+  delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
 
-  if (st_lookup(arg->object_table, (st_data_t)obj, (st_data_t *)&info)) {
-    st_delete(arg->object_table, (st_data_t *)&obj, (st_data_t *)&info);
-    delete_unique_str(arg->str_table, info->path);
-    delete_unique_str(arg->str_table, info->class_path);
-    ruby_xfree(info);
-  }
-
-  msgpack_sbuffer_clear(logger->sbuf);
-  pack_event_header(logger->msgpacker, event_names[4], 3);
-  pack_string(logger->msgpacker, "payload");
-  msgpack_pack_map(logger->msgpacker, 1);
-  pack_string(logger->msgpacker, "object_id");
-  pack_pointer(logger->msgpacker, obj);
-  add_message(logger->sbuf);
+  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(obj);
+  pack_event(event, arg->sbuf, arg->msgpacker);
+  free(event);
+  add_message(arg->sbuf);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -342,7 +264,8 @@ static VALUE stop_stat_server() {
   return Qnil;
 }
 
-void pack_value_object(msgpack_packer *packer, VALUE value) {
+
+static void pack_value_object(msgpack_packer *packer, VALUE value) {
   switch (TYPE(value)) {
     case T_FIXNUM:
       msgpack_pack_long(packer, FIX2LONG(value));
@@ -367,25 +290,6 @@ static int hash_iterator(VALUE key, VALUE value, VALUE hash_arg) {
   // pack the value
   pack_value_object(packer, value);
   return ST_CONTINUE;
-}
-
-
-void pack_string(msgpack_packer *packer, char *string) {
-  if(string == NULL) {
-    msgpack_pack_nil(packer);
-  } else {
-    int length = strlen(string);
-    msgpack_pack_raw(packer, length);
-    msgpack_pack_raw_body(packer, string, length);
-  }
-}
-
-void pack_timestamp(msgpack_packer *packer) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
-    msgpack_pack_double(packer, time_in_milliseconds);
 }
 
 static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {

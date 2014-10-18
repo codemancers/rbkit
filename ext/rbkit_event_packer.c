@@ -19,6 +19,12 @@ static void pack_timestamp(msgpack_packer *packer) {
     msgpack_pack_double(packer, time_in_milliseconds);
 }
 
+static void pack_pointer(msgpack_packer *packer, void * pointer) {
+  char *pointer_string;
+  asprintf(&pointer_string, "%p", pointer);
+  pack_string(packer, pointer_string);
+  free(pointer_string);
+}
 
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
 {
@@ -43,6 +49,23 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_sbuff
   //TODO: pack allocation info as well
 }
 
+static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+  msgpack_sbuffer_clear(sbuf);
+  msgpack_pack_map(packer, 3);
+  pack_event_header(packer, event->event_header.event_type);
+
+  pack_string(packer, "payload");
+  msgpack_pack_map(packer, 1);
+  pack_string(packer, "object_id");
+  pack_pointer(packer, event->object_id);
+}
+
+static void pack_event_header_only(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+  msgpack_sbuffer_clear(sbuf);
+  msgpack_pack_map(packer, 2);
+  pack_event_header(packer, event_header->event_type);
+}
+
 void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
   msgpack_sbuffer_clear(sbuf);
   switch (event_header->event_type) {
@@ -50,16 +73,16 @@ void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack
       pack_obj_created_event(event_header, sbuf, packer);
       break;
     case obj_destroyed:
-      //TODO
+      pack_obj_destroyed_event(event_header, sbuf, packer);
       break;
     case gc_start:
-      //TODO
+      pack_event_header_only(event_header, sbuf, packer);
       break;
     case gc_end_m:
-      //TODO
+      pack_event_header_only(event_header, sbuf, packer);
       break;
     case gc_end_s:
-      //TODO
+      pack_event_header_only(event_header, sbuf, packer);
       break;
     case object_space_dump:
       //TODO

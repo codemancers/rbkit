@@ -12,5 +12,6 @@ typedef struct _rbkit_allocation_info {
 } rbkit_allocation_info;
 
 rbkit_allocation_info * new_rbkit_allocation_info(rb_trace_arg_t *tparg, st_table *str_table, st_table *object_table);
+void delete_rbkit_allocation_info(rb_trace_arg_t *tparg, VALUE obj, st_table *str_table, st_table *object_table);
 
 #endif

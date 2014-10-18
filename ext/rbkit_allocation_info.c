@@ -79,3 +79,13 @@ rbkit_allocation_info * new_rbkit_allocation_info(rb_trace_arg_t *tparg, st_tabl
   st_insert(object_table, (st_data_t)obj, (st_data_t)info);
   return info;
 }
+
+void delete_rbkit_allocation_info(rb_trace_arg_t *tparg, VALUE obj, st_table *str_table, st_table *object_table) {
+  rbkit_allocation_info *info;
+  if (st_lookup(object_table, (st_data_t)obj, (st_data_t *)&info)) {
+    st_delete(object_table, (st_data_t *)&obj, (st_data_t *)&info);
+    delete_unique_str(str_table, info->path);
+    delete_unique_str(str_table, info->class_path);
+    ruby_xfree(info);
+  }
+}

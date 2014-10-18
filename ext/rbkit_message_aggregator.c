@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "zmq.h"
 #include "rbkit_message_aggregator.h"
+#include "pack_helper.h"
 
 static msgpack_sbuffer * sbuf;
 static void* message_array;
