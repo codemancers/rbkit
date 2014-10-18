@@ -6,11 +6,13 @@
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 require 'rbkit'
 require 'support/object_id_helper'
+require 'support/foo_bar_sample_class'
 Rbkit.enable_test_mode
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
   config.filter_run :focus
 
+  config.before(:all) { GC.start }
   # Run specs in random order to surface order dependencies. If you find an
   # order dependency and want to debug it, you can fix the order by providing
   # the seed, which is printed after each run.

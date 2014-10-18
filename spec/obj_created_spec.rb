@@ -4,14 +4,6 @@ require 'msgpack'
 
 describe "obj_created event" do
   before(:all) do
-    class Bar;end
-    class Foo
-      attr_reader :bar
-      def initialize
-        @bar = Bar.new
-      end
-    end
-
     Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
     @foo_obj = Foo.new
     packed_message = Rbkit.get_queued_messages
@@ -21,6 +13,8 @@ describe "obj_created event" do
       .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='Foo' }
     @bar_info = @message_list['payload']
       .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='Bar' }
+    @short_lived_bar_info = @message_list['payload']
+      .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='ShortLivedBar' }
   end
   it "should be part of message list" do
     expect(@message_list).to have_message('obj_created')
@@ -29,6 +23,7 @@ describe "obj_created event" do
   it 'should record objects only once' do
     expect(@foo_info.size).to eql 1
     expect(@bar_info.size).to eql 1
+    expect(@short_lived_bar_info.size).to eql 1
   end
 
   it 'should record correct object_id' do
