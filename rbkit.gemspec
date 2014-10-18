@@ -14,6 +14,7 @@ Gem::Specification.new do |s|
   if s.respond_to? :required_rubygems_version=
     s.required_rubygems_version = Gem::Requirement.new(">= 0")
   end
+  s.required_ruby_version = '>= 2.1.0'
   s.authors = ["Hemant Kumar", "Emil Soman", "Kashyap"]
   s.description = %q{Something small for process management}
   s.email = %q{hemant@codemancers.com emil@codemancers.com kashyap@codemancers.com}
