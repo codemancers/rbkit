@@ -36,7 +36,6 @@ static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_typ
 }
 
 static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
-  msgpack_sbuffer_clear(sbuf);
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -50,7 +49,6 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_sbuff
 }
 
 static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
-  msgpack_sbuffer_clear(sbuf);
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -61,9 +59,45 @@ static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_sbu
 }
 
 static void pack_event_header_only(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
-  msgpack_sbuffer_clear(sbuf);
   msgpack_pack_map(packer, 2);
   pack_event_header(packer, event_header->event_type);
+}
+
+static void pack_value_object(msgpack_packer *packer, VALUE value) {
+  switch (TYPE(value)) {
+    case T_FIXNUM:
+      msgpack_pack_long(packer, FIX2LONG(value));
+      break;
+    case T_FLOAT:
+      msgpack_pack_double(packer, rb_num2dbl(value));
+      break;
+    default:
+      ;
+      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
+      char *keyString = StringValueCStr(rubyString);
+      pack_string(packer, keyString);
+      break;
+  }
+}
+
+static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
+  msgpack_packer *packer = (msgpack_packer *)hash_arg;
+
+  // pack the key
+  pack_value_object(packer,key);
+  // pack the value
+  pack_value_object(packer, value);
+  return ST_CONTINUE;
+}
+
+static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+  msgpack_pack_map(packer, 3);
+  pack_event_header(packer, event->event_header.event_type);
+  VALUE hash = event->hash;
+  int size = RHASH_SIZE(hash);
+  pack_string(packer, "payload");
+  msgpack_pack_map(packer, size);
+  rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
@@ -88,7 +122,9 @@ void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack
       //TODO
       break;
     case gc_stats:
-      //TODO
+      pack_gc_stats_event(event_header, sbuf, packer);
       break;
+    default:
+      fprintf(stderr, "Don't know how to pack event type : %u\n", event_header->event_type);
   }
 }

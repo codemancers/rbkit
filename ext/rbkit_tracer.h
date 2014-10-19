@@ -17,7 +17,6 @@ typedef struct _rbkit_logger {
   st_table *str_table;
   VALUE newobj_trace;
   VALUE freeobj_trace;
-  int keep_remains;
   msgpack_sbuffer *sbuf;
   msgpack_packer *msgpacker;
 } rbkit_logger;

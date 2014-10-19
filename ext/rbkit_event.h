@@ -12,6 +12,8 @@ typedef enum _event_type {
   gc_stats
 } rbkit_event_type;
 
+VALUE rbkit_event_types_as_hash();
+
 typedef struct _rbkit_event_header {
   rbkit_event_type event_type;
   double timestamp; //In milliseconds
@@ -32,5 +34,12 @@ typedef struct _rbkit_obj_destroyed_event {
 } rbkit_obj_destroyed_event;
 
 rbkit_obj_destroyed_event *new_rbkit_obj_destroyed_event(void *object_id);
+
+typedef struct _rbkit_hash_event {
+  rbkit_event_header event_header;
+  VALUE hash;
+} rbkit_hash_event;
+
+rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash);
 
 #endif

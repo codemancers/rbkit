@@ -16,7 +16,7 @@ module Rbkit
       @server_running = false
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
-        Rbkit.send_hash_as_event(data, "gc_stats")
+        Rbkit.send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
       end
       @message_dispatch_timer = Rbkit::Timer.new(1) do
         Rbkit.send_messages

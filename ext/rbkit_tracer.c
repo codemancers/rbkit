@@ -25,7 +25,6 @@ static const char *event_names[] = {
 };
 
 static rbkit_logger *logger;
-static int tmp_keep_remains;
 static void *zmq_publisher;
 static void *zmq_context;
 static void *zmq_response_socket;
@@ -38,7 +37,6 @@ static rbkit_logger * get_trace_logger() {
     logger->enabled = Qfalse;
     logger->newobj_trace = 0;
     logger->freeobj_trace = 0;
-    logger->keep_remains = tmp_keep_remains;
     logger->object_table = st_init_numtable();
     logger->str_table = st_init_strtable();
 
@@ -264,49 +262,19 @@ static VALUE stop_stat_server() {
   return Qnil;
 }
 
-
-static void pack_value_object(msgpack_packer *packer, VALUE value) {
-  switch (TYPE(value)) {
-    case T_FIXNUM:
-      msgpack_pack_long(packer, FIX2LONG(value));
-      break;
-    case T_FLOAT:
-      msgpack_pack_double(packer, rb_num2dbl(value));
-      break;
-    default:
-      ;
-      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
-      char *keyString = StringValueCStr(rubyString);
-      pack_string(packer, keyString);
-      break;
-  }
-}
-
-static int hash_iterator(VALUE key, VALUE value, VALUE hash_arg) {
-  msgpack_packer *packer = (msgpack_packer *)hash_arg;
-
-  // pack the key
-  pack_value_object(packer,key);
-  // pack the value
-  pack_value_object(packer, value);
-  return ST_CONTINUE;
-}
-
 static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   VALUE hash_object;
-  VALUE event_name;
+  VALUE event_type;
 
-  rb_scan_args(argc, argv, "20", &hash_object, &event_name);
+  rb_scan_args(argc, argv, "20", &hash_object, &event_type);
 
-  int size = RHASH_SIZE(hash_object);
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
-  pack_event_header(packer, StringValueCStr(event_name), 3);
 
-  pack_string(packer, "payload");
-  msgpack_pack_map(packer, size);
+  rbkit_hash_event *event = new_rbkit_hash_event(FIX2INT(event_type), hash_object);
+  pack_event(event, buffer, packer);
+  free(event);
 
-  rb_hash_foreach(hash_object, hash_iterator, (VALUE)packer);
   add_message(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
@@ -464,4 +432,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
   rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
+  rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
 }
