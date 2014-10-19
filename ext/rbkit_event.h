@@ -1,6 +1,7 @@
 #ifndef RBKIT_EVENT
 #define RBKIT_EVENT
 #include "rbkit_allocation_info.h"
+#include "rbkit_object_graph.h"
 
 typedef enum _event_type {
   obj_created,
@@ -41,5 +42,12 @@ typedef struct _rbkit_hash_event {
 } rbkit_hash_event;
 
 rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash);
+
+typedef struct _rbkit_object_space_dump_event {
+  rbkit_event_header event_header;
+  rbkit_object_dump *dump;
+} rbkit_object_space_dump_event;
+
+rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump);
 
 #endif

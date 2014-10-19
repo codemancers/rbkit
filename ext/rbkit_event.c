@@ -45,3 +45,13 @@ rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash) 
   event->hash = hash;
   return event;
 }
+
+rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump) {
+  rbkit_object_space_dump_event *event = malloc(sizeof(rbkit_object_space_dump_event));
+
+  rbkit_event_header *header = event;
+  header->event_type = object_space_dump;
+
+  event->dump = dump;
+  return event;
+}

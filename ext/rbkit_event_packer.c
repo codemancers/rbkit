@@ -1,4 +1,5 @@
 #include "rbkit_event_packer.h"
+#include "rbkit_object_graph.h"
 #include <sys/time.h>
 
 static void pack_string(msgpack_packer *packer, char *string) {
@@ -100,6 +101,95 @@ static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_sbuffer *sbuf, 
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
+static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+  rbkit_object_dump *dump = event->dump;
+  msgpack_pack_map(packer, 3);
+  pack_event_header(packer, event->event_header.event_type);
+  pack_string(packer, "payload");
+  // Set size of array to hold all objects
+  msgpack_pack_array(packer, dump->object_count);
+
+  // Iterate through all object data
+  rbkit_object_dump_page * page = dump->first ;
+  while(page != NULL) {
+    rbkit_object_data *data;
+    size_t i = 0;
+    for(;i < page->count; i++) {
+      data = &(page->data[i]);
+      /* Object dump is a map that looks like this :
+       * {
+       *   object_id: <OBJECT_ID_IN_HEX>,
+       *   class: <CLASS_NAME>,
+       *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
+       *   file: <FILE_PATH>,
+       *   line: <LINE_NO>,
+       *   size: <SIZE>
+       * }
+       */
+
+      msgpack_pack_map(packer, 6);
+
+      // Key1 : "object_id"
+      pack_string(packer, "object_id");
+
+      // Value1 : pointer address of object
+      char * object_id;
+      asprintf(&object_id, "%p", data->object_id);
+      pack_string(packer, object_id);
+      free(object_id);
+
+      // Key2 : "class_name"
+      pack_string(packer, "class_name");
+
+      // Value2 : Class name of object
+      pack_string(packer, data->class_name);
+
+      // Key3 : "references"
+      pack_string(packer, "references");
+
+      // Value3 : References held by the object
+      msgpack_pack_array(packer, data->reference_count);
+      if(data->reference_count != 0) {
+        size_t count = 0;
+        for(; count < data->reference_count; count++ ) {
+          char * object_id;
+          asprintf(&object_id, "%p", data->references[count]);
+          pack_string(packer, object_id);
+          free(object_id);
+        }
+        free(data->references);
+      }
+
+      // Key4 : "file"
+      pack_string(packer, "file");
+
+      // Value4 : File path where object is defined
+      pack_string(packer, data->file);
+
+      // Key5 : "line"
+      pack_string(packer, "line");
+
+      // Value5 : Line no where object is defined
+      if(data->line == 0)
+        msgpack_pack_nil(packer);
+      else
+        msgpack_pack_unsigned_long(packer, data->line);
+
+      // Key6 : "size"
+      pack_string(packer, "size");
+
+      // Value6 : Size of the object in memory
+      if(data->size == 0)
+        msgpack_pack_nil(packer);
+      else
+        msgpack_pack_uint32(packer, data->size);
+    }
+    rbkit_object_dump_page * prev = page;
+    page = page->next;
+    free(prev);
+  }
+}
+
 void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
   msgpack_sbuffer_clear(sbuf);
   switch (event_header->event_type) {
@@ -119,7 +209,7 @@ void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack
       pack_event_header_only(event_header, sbuf, packer);
       break;
     case object_space_dump:
-      //TODO
+      pack_object_space_dump_event(event_header, sbuf, packer);
       break;
     case gc_stats:
       pack_gc_stats_event(event_header, sbuf, packer);
