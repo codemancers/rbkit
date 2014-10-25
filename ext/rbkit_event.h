@@ -2,6 +2,7 @@
 #define RBKIT_EVENT
 #include "rbkit_allocation_info.h"
 #include "rbkit_object_graph.h"
+#include "msgpack.h"
 
 typedef enum _event_type {
   obj_created,
@@ -10,7 +11,8 @@ typedef enum _event_type {
   gc_end_m,
   gc_end_s,
   object_space_dump,
-  gc_stats
+  gc_stats,
+  event_collection
 } rbkit_event_type;
 
 VALUE rbkit_event_types_as_hash();
@@ -49,5 +51,14 @@ typedef struct _rbkit_object_space_dump_event {
 } rbkit_object_space_dump_event;
 
 rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump);
+
+typedef struct _rbkit_event_collection_event {
+  rbkit_event_header event_header;
+  void *buffer;
+  size_t buffer_size;
+  size_t message_count;
+} rbkit_event_collection_event;
+
+rbkit_event_collection_event *new_rbkit_event_collection_event(void * buffer, size_t buffer_size, size_t message_count);
 
 #endif

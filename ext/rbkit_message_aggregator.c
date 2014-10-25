@@ -1,18 +1,9 @@
-#include <assert.h>
-#include "zmq.h"
 #include "rbkit_message_aggregator.h"
-#include "pack_helper.h"
 
-static msgpack_sbuffer * sbuf;
 static void* message_array;
 static size_t used_memsize;
 static size_t total_capacity;
 static size_t no_of_messages;
-static unsigned long message_counter = 0;
-
-static unsigned long get_message_counter() {
-  return message_counter++;
-}
 
 static int has_enough_space_for(size_t size) {
   return ((total_capacity - used_memsize) >= size);
@@ -21,7 +12,6 @@ static int has_enough_space_for(size_t size) {
 static void double_the_capacity() {
   total_capacity *= 2;
   message_array = realloc(message_array, total_capacity);
-  assert(message_array);
 }
 
 void message_list_new() {
@@ -54,21 +44,17 @@ void add_message(msgpack_sbuffer *buffer) {
   no_of_messages += 1;
 }
 
-// Creates a message containing all the available
-// msgpack sbuffers in the array
-void get_event_collection_message(msgpack_sbuffer *sbuf) {
-  if(no_of_messages > 0) {
-    msgpack_packer *pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
-    pack_event_header(pk, "event_collection", 4);
-    pack_string(pk, "message_counter");
-    msgpack_pack_unsigned_long(pk, get_message_counter());
-    pack_string(pk, "payload");
-    msgpack_pack_array(pk, no_of_messages);
-    sbuf->data = realloc(sbuf->data, used_memsize + sbuf->size);
-    assert(sbuf->data);
-    memcpy(sbuf->data + sbuf->size, message_array, used_memsize);
-    sbuf->size += used_memsize;
+void * get_event_collection_buffer() {
+  if(no_of_messages > 0)
+    return message_array;
+  else
+    return NULL;
+}
 
-    msgpack_packer_free(pk);
-  }
+size_t get_event_collection_buffer_size() {
+  return used_memsize;
+}
+
+size_t get_event_collection_message_count() {
+  return no_of_messages;
 }

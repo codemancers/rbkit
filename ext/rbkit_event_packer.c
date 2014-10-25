@@ -36,7 +36,13 @@ static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_typ
   pack_timestamp(packer);
 }
 
-static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static unsigned long message_counter = 0;
+
+static unsigned long get_message_counter() {
+  return message_counter++;
+}
+
+static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -49,7 +55,7 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_sbuff
   //TODO: pack allocation info as well
 }
 
-static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -59,7 +65,7 @@ static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_sbu
   pack_pointer(packer, event->object_id);
 }
 
-static void pack_event_header_only(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static void pack_event_header_only(rbkit_event_header *event_header, msgpack_packer *packer) {
   msgpack_pack_map(packer, 2);
   pack_event_header(packer, event_header->event_type);
 }
@@ -91,7 +97,7 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
   return ST_CONTINUE;
 }
 
-static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
@@ -101,7 +107,7 @@ static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_sbuffer *sbuf, 
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
-static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
   rbkit_object_dump *dump = event->dump;
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
@@ -190,29 +196,47 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   }
 }
 
-void pack_event(rbkit_event_header *event_header, msgpack_sbuffer *sbuf, msgpack_packer *packer) {
+static void pack_event_collection_event(rbkit_event_collection_event *event, msgpack_packer *packer) {
+  msgpack_sbuffer *sbuf = packer->data;
+  msgpack_pack_map(packer, 4);
+  pack_event_header(packer, event->event_header.event_type);
+  pack_string(packer, "message_counter");
+  msgpack_pack_unsigned_long(packer, get_message_counter());
+  pack_string(packer, "payload");
+  msgpack_pack_array(packer, event->message_count);
+  sbuf->data = realloc(sbuf->data, event->buffer_size + sbuf->size);
+  memcpy(sbuf->data + sbuf->size, event->buffer, event->buffer_size);
+  sbuf->size += event->buffer_size;
+}
+
+void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
+  msgpack_sbuffer *sbuf = packer->data;
   msgpack_sbuffer_clear(sbuf);
+
   switch (event_header->event_type) {
     case obj_created:
-      pack_obj_created_event(event_header, sbuf, packer);
+      pack_obj_created_event(event_header, packer);
       break;
     case obj_destroyed:
-      pack_obj_destroyed_event(event_header, sbuf, packer);
+      pack_obj_destroyed_event(event_header, packer);
       break;
     case gc_start:
-      pack_event_header_only(event_header, sbuf, packer);
+      pack_event_header_only(event_header, packer);
       break;
     case gc_end_m:
-      pack_event_header_only(event_header, sbuf, packer);
+      pack_event_header_only(event_header, packer);
       break;
     case gc_end_s:
-      pack_event_header_only(event_header, sbuf, packer);
+      pack_event_header_only(event_header, packer);
       break;
     case object_space_dump:
-      pack_object_space_dump_event(event_header, sbuf, packer);
+      pack_object_space_dump_event(event_header, packer);
       break;
     case gc_stats:
-      pack_gc_stats_event(event_header, sbuf, packer);
+      pack_gc_stats_event(event_header, packer);
+      break;
+    case event_collection:
+      pack_event_collection_event(event_header, packer);
       break;
     default:
       fprintf(stderr, "Don't know how to pack event type : %u\n", event_header->event_type);

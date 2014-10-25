@@ -9,6 +9,7 @@ VALUE rbkit_event_types_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("gc_end_s")), INT2FIX(gc_end_s));
   rb_hash_aset(events, ID2SYM(rb_intern("object_space_dump")), INT2FIX(object_space_dump));
   rb_hash_aset(events, ID2SYM(rb_intern("gc_stats")), INT2FIX(gc_stats));
+  rb_hash_aset(events, ID2SYM(rb_intern("event_collection")), INT2FIX(event_collection));
   OBJ_FREEZE(events);
   return events;
 }
@@ -53,5 +54,17 @@ rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_du
   header->event_type = object_space_dump;
 
   event->dump = dump;
+  return event;
+}
+
+rbkit_event_collection_event *new_rbkit_event_collection_event(void *buffer, size_t buffer_size, size_t message_count) {
+  rbkit_event_collection_event *event = malloc(sizeof(rbkit_event_collection_event));
+
+  rbkit_event_header *header = event;
+  header->event_type = event_collection;
+
+  event->buffer = buffer;
+  event->buffer_size = buffer_size;
+  event->message_count = message_count;
   return event;
 }

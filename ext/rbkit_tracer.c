@@ -13,7 +13,6 @@
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
 #include "rbkit_test_helper.h"
-#include "pack_helper.h"
 #include <sys/time.h>
 
 static const char *event_names[] = {
@@ -53,7 +52,7 @@ gc_start_i(VALUE tpval, void *data)
   rbkit_logger * arg = (rbkit_logger *)data;
   rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
   event->event_type = gc_start;
-  pack_event(event, arg->sbuf, arg->msgpacker);
+  pack_event(event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -64,7 +63,7 @@ gc_end_mark_i(VALUE tpval, void *data)
   rbkit_logger * arg = (rbkit_logger *)data;
   rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
   event->event_type = gc_end_m;
-  pack_event(event, arg->sbuf, arg->msgpacker);
+  pack_event(event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -75,7 +74,7 @@ gc_end_sweep_i(VALUE tpval, void *data)
   rbkit_logger * arg = (rbkit_logger *)data;
   rbkit_event_header *event = malloc(sizeof(rbkit_event_header));
   event->event_type = gc_end_s;
-  pack_event(event, arg->sbuf, arg->msgpacker);
+  pack_event(event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -107,7 +106,7 @@ static void newobj_i(VALUE tpval, void *data) {
     class_name = rb_class2name(klass);
 
   rbkit_obj_created_event *event = new_rbkit_obj_created_event(obj, class_name, info);
-  pack_event(event, arg->sbuf, arg->msgpacker);
+  pack_event(event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -122,7 +121,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
 
   rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(obj);
-  pack_event(event, arg->sbuf, arg->msgpacker);
+  pack_event(event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -272,7 +271,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
   rbkit_hash_event *event = new_rbkit_hash_event(FIX2INT(event_type), hash_object);
-  pack_event(event, buffer, packer);
+  pack_event(event, packer);
   free(event);
 
   add_message(buffer);
@@ -300,7 +299,7 @@ static VALUE send_objectspace_dump() {
 
   rbkit_object_dump * dump = get_object_dump(logger->object_table);
   rbkit_object_space_dump_event *event = new_rbkit_object_space_dump_event(dump);
-  pack_event(event, buffer, pk);
+  pack_event(event, pk);
   free(event);
   add_message(buffer);
 
@@ -316,14 +315,24 @@ static VALUE send_objectspace_dump() {
  */
 static VALUE send_messages() {
   //Get all aggregated messages as payload of a single event.
+  void *message_buffer = get_event_collection_buffer();
+  size_t message_buffer_size = get_event_collection_buffer_size();
+  size_t message_count = get_event_collection_message_count();
+  if(message_count == 0)
+    return Qnil;
+
   msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
-  get_event_collection_message(sbuf);
+  msgpack_packer* pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
+
+  rbkit_event_collection_event *event = new_rbkit_event_collection_event(message_buffer, message_buffer_size, message_count);
+  pack_event(event, pk);
+  free(event);
   //Send the msgpack array over zmq PUB socket
-  if(sbuf && sbuf->size > 0)
-    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_free(sbuf);
+  msgpack_packer_free(pk);
   return Qnil;
 }
 
