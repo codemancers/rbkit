@@ -2,7 +2,6 @@
 #define RBKIT_EVENT
 #include "rbkit_allocation_info.h"
 #include "rbkit_object_graph.h"
-#include "msgpack.h"
 
 typedef enum _event_type {
   obj_created,
