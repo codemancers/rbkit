@@ -1,4 +1,5 @@
 #include "rbkit_message_aggregator.h"
+#include "rbkit_event_packer.h"
 
 static void* message_array;
 static size_t used_memsize;
@@ -44,17 +45,15 @@ void add_message(msgpack_sbuffer *buffer) {
   no_of_messages += 1;
 }
 
-void * get_event_collection_buffer() {
-  if(no_of_messages > 0)
-    return message_array;
-  else
-    return NULL;
-}
+// Creates a message containing all the available
+// msgpack sbuffers in the array
+void get_event_collection_message(msgpack_sbuffer *sbuf) {
+  if(no_of_messages == 0)
+    return;
 
-size_t get_event_collection_buffer_size() {
-  return used_memsize;
-}
-
-size_t get_event_collection_message_count() {
-  return no_of_messages;
+  rbkit_event_collection_event *event = new_rbkit_event_collection_event(message_array, used_memsize, no_of_messages);
+  msgpack_packer* pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
+  pack_event(event, pk);
+  free(event);
+  msgpack_packer_free(pk);
 }

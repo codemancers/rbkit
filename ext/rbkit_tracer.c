@@ -315,24 +315,14 @@ static VALUE send_objectspace_dump() {
  */
 static VALUE send_messages() {
   //Get all aggregated messages as payload of a single event.
-  void *message_buffer = get_event_collection_buffer();
-  size_t message_buffer_size = get_event_collection_buffer_size();
-  size_t message_count = get_event_collection_message_count();
-  if(message_count == 0)
-    return Qnil;
-
   msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
-  msgpack_packer* pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
-
-  rbkit_event_collection_event *event = new_rbkit_event_collection_event(message_buffer, message_buffer_size, message_count);
-  pack_event(event, pk);
-  free(event);
+  get_event_collection_message(sbuf);
   //Send the msgpack array over zmq PUB socket
-  zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  if(sbuf && sbuf->size > 0)
+    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_free(sbuf);
-  msgpack_packer_free(pk);
   return Qnil;
 }
 
