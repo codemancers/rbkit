@@ -37,36 +37,6 @@ static void set_size(VALUE obj, rbkit_object_data * data) {
     data->size = size;
 }
 
-static void dump_root_object(VALUE obj, const char* category, rbkit_object_dump *dump) {
-  rbkit_object_data *data = initialize_object_data(dump);
-
-  //Set object id
-  data->object_id = (void *)obj;
-  //Set classname
-  data->class_name = NULL;
-  //Set classname of "symbols" category as "Symbol" to match <symbol>.class output
-  if(strcmp(category, "symbols") == 0){
-    data->class_name = "Symbol" ;
-  } else {
-    data->class_name = category ;
-  }
-
-  //Set file path and line no where object is defined
-  struct allocation_info *info;
-  if (st_lookup(dump->object_table, obj, (st_data_t *)&info)) {
-    if(info) {
-      data->file = info->path;
-      data->line = info->line;
-    }
-  }
-
-  set_size(obj, data);
-  // Update total number of objects
-  dump->object_count++;
-  // Update number of objects on last page
-  dump->last->count++;
-}
-
 static void reachable_object_i(VALUE ref, rbkit_object_data *data)
 {
   if(RBASIC_CLASS(ref) == ref)
@@ -110,15 +80,6 @@ static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
 }
 
 /*
- * The following categories of objects are directly accessible from the root:
- * ["vm", "machine_context", "symbols", "global_list", "end_proc", "global_tbl"]
- */
-static void root_object_i(const char *category, VALUE obj, void *dump_data)
-{
-  dump_root_object(obj, category, (rbkit_object_dump *)dump_data);
-}
-
-/*
  * Iterator that walks over heap pages
  */
 static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
@@ -135,10 +96,6 @@ static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
   return 0;
 }
 
-static void collect_root_objects(rbkit_object_dump * dump) {
-  rb_objspace_reachable_objects_from_root(root_object_i, (void *)dump);
-}
-
 static void collect_heap_objects(rbkit_object_dump * dump) {
   rb_objspace_each_objects(heap_obj_i, (void *)dump);
 }
@@ -148,7 +105,6 @@ rbkit_object_dump * get_object_dump(st_table * object_table) {
   dump->object_table = object_table;
   dump->first = NULL;
   dump->last = NULL;
-  collect_root_objects(dump);
   collect_heap_objects(dump);
   return dump;
 }
