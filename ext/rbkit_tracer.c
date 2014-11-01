@@ -28,6 +28,7 @@ static void *zmq_publisher;
 static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
+static int test_mode_enabled = 0;
 
 static rbkit_logger * get_trace_logger() {
   int i = 0;
@@ -51,6 +52,9 @@ static rbkit_logger * get_trace_logger() {
  * the last time send_messages() was called, and sends it over the PUB socket.
  */
 static VALUE send_messages() {
+  if(test_mode_enabled)
+    return Qnil; //NOOP
+
   //Get all aggregated messages as payload of a single event.
   msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
   get_event_collection_message(sbuf);
@@ -67,11 +71,8 @@ static VALUE send_messages() {
 // the queue becomes full.
 static void send_message(msgpack_sbuffer *buffer) {
   queue_message(buffer);
-  if(queued_message_count() == MESSAGE_BATCH_SIZE) {
-    // Always call send_messages from Ruby land. This is done
-    // to allow send_messages to be mocked while running tests.
-    rb_funcall(rb_define_module("Rbkit"), rb_intern("send_messages"), 0, NULL);
-  }
+  if(queued_message_count() == MESSAGE_BATCH_SIZE)
+    send_messages();
 }
 
 static void
@@ -336,6 +337,7 @@ static VALUE send_objectspace_dump() {
     send_message(buffer);
   }
 
+  free(event->current_page);
   free(event);
   free(dump);
   msgpack_sbuffer_free(buffer);
@@ -344,6 +346,7 @@ static VALUE send_objectspace_dump() {
 }
 
 static VALUE enable_test_mode() {
+  test_mode_enabled = 1;
   Init_rbkit_test_helper();
   return Qnil;
 }
