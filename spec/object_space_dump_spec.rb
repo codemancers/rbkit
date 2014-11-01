@@ -11,18 +11,30 @@ describe "Objectspace dump" do
     packed_message = Rbkit.get_queued_messages
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
-    @message = @message_list['payload']
-      .find{|x| x['event_type'] == Rbkit::EVENT_TYPES[:object_space_dump]}
-    @foo_info = @message['payload'].select{|x| x['class_name'] == 'Foo'}
-    @bar_info = @message['payload'].select{|x| x['class_name'] == 'Bar'}
-    @short_lived_bar_info = @message['payload'].select{|x| x['class_name'] == 'ShortLivedBar'}
-    @array_info = @message['payload']
-      .select{|obj| obj['object_id'] == @foo_info.first['references'].last }
+    @object_dump_messages = @message_list['payload']
+      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:object_space_dump]}
+    @foo_info = @bar_info = @array_info = @short_lived_bar_info = []
+    @object_count = 0
+    @object_dump_messages.each do |message|
+      @foo_info += message['payload'].select{|x| x['class_name'] == 'Foo'}
+      @bar_info += message['payload'].select{|x| x['class_name'] == 'Bar'}
+      @short_lived_bar_info += message['payload'].select{|x| x['class_name'] == 'ShortLivedBar'}
+      @object_count += message['payload'].size
+    end
+    @object_dump_messages.each do |message|
+      @array_info += message['payload'].select{|x| x['object_id'] == @foo_info.first['references'].last }
+    end
+
   end
   it "should be part of message list" do
     expect(@message_list)
       .to have_message(Rbkit::EVENT_TYPES[:object_space_dump])
-      .with_count(1)
+  end
+
+  it 'should be split into messages of 20 objects each' do
+    message_count, left_over_objects = @object_count.divmod(20)
+    message_count += 1 unless left_over_objects.zero?
+    expect(@object_dump_messages.size).to eql(message_count)
   end
 
   it 'should record objects only once' do

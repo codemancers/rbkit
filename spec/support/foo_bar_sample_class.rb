@@ -4,7 +4,7 @@ class Foo
   attr_reader :array, :bar
   def initialize
     @bar = Bar.new
-    ShortLivedBar.new #not reference outside this scope
+    ShortLivedBar.new #not referenced outside this scope
     @array = [1, 2, 3, 4, 5, 6, 7]
   end
 end
