@@ -239,6 +239,8 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
       pack_event_collection_event(event_header, packer);
       break;
     default:
-      fprintf(stderr, "Don't know how to pack event type : %u\n", event_header->event_type);
+      rb_raise(rb_eNotImpError,
+          "Rbkit : Unpacking of event type '%u' not implemented",
+          event_header->event_type);
   }
 }
