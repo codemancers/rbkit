@@ -15,10 +15,10 @@ VALUE rbkit_event_types_as_hash() {
 }
 
 rbkit_obj_created_event *new_rbkit_obj_created_event(void *object_id,
-    char *klass, rbkit_allocation_info *info) {
+    const char *klass, rbkit_allocation_info *info) {
   rbkit_obj_created_event *event = malloc(sizeof(rbkit_obj_created_event));
 
-  rbkit_event_header *header = event;
+  rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = obj_created;
 
   event->object_id = object_id;
@@ -30,7 +30,7 @@ rbkit_obj_created_event *new_rbkit_obj_created_event(void *object_id,
 rbkit_obj_destroyed_event *new_rbkit_obj_destroyed_event(void *object_id) {
   rbkit_obj_destroyed_event *event = malloc(sizeof(rbkit_obj_destroyed_event));
 
-  rbkit_event_header *header = event;
+  rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = obj_destroyed;
 
   event->object_id = object_id;
@@ -40,7 +40,7 @@ rbkit_obj_destroyed_event *new_rbkit_obj_destroyed_event(void *object_id) {
 rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash) {
   rbkit_hash_event *event = malloc(sizeof(rbkit_hash_event));
 
-  rbkit_event_header *header = event;
+  rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = event_type;
 
   event->hash = hash;
@@ -50,7 +50,7 @@ rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash) 
 rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump) {
   rbkit_object_space_dump_event *event = malloc(sizeof(rbkit_object_space_dump_event));
 
-  rbkit_event_header *header = event;
+  rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = object_space_dump;
 
   event->dump = dump;
@@ -60,7 +60,7 @@ rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_du
 rbkit_event_collection_event *new_rbkit_event_collection_event(void *buffer, size_t buffer_size, size_t message_count) {
   rbkit_event_collection_event *event = malloc(sizeof(rbkit_event_collection_event));
 
-  rbkit_event_header *header = event;
+  rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = event_collection;
 
   event->buffer = buffer;

@@ -101,12 +101,12 @@ static void newobj_i(VALUE tpval, void *data) {
 
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
-  char *class_name = NULL;
+  const char *class_name = NULL;
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
     class_name = rb_class2name(klass);
 
-  rbkit_obj_created_event *event = new_rbkit_obj_created_event(obj, class_name, info);
-  pack_event(event, arg->msgpacker);
+  rbkit_obj_created_event *event = new_rbkit_obj_created_event((void *)obj, class_name, info);
+  pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -120,8 +120,8 @@ static void freeobj_i(VALUE tpval, void *data) {
   // Delete allocation info of freed object
   delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
 
-  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(obj);
-  pack_event(event, arg->msgpacker);
+  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event((void *)obj);
+  pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   add_message(arg->sbuf);
 }
@@ -271,7 +271,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
   rbkit_hash_event *event = new_rbkit_hash_event(FIX2INT(event_type), hash_object);
-  pack_event(event, packer);
+  pack_event((rbkit_event_header *)event, packer);
   free(event);
 
   add_message(buffer);
@@ -299,7 +299,7 @@ static VALUE send_objectspace_dump() {
 
   rbkit_object_dump * dump = get_object_dump(logger->object_table);
   rbkit_object_space_dump_event *event = new_rbkit_object_space_dump_event(dump);
-  pack_event(event, pk);
+  pack_event((rbkit_event_header *)event, pk);
   free(event);
   add_message(buffer);
 
