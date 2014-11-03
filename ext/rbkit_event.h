@@ -18,7 +18,6 @@ VALUE rbkit_event_types_as_hash();
 
 typedef struct _rbkit_event_header {
   rbkit_event_type event_type;
-  double timestamp; //In milliseconds
 } rbkit_event_header;
 
 typedef struct _rbkit_obj_created_event {
