@@ -1,5 +1,6 @@
 #ifndef RBKIT_OBJECT_GRAPH
 #define RBKIT_OBJECT_GRAPH
+#include <ruby.h>
 
 #define RBKIT_OBJECT_DUMP_PAGE_SIZE 1000
 
@@ -8,7 +9,7 @@ typedef struct _rbkit_object_data {
   const char * class_name;
   void ** references;
   size_t reference_count;
-  char * file;
+  const char * file;
   unsigned long line;
   size_t size;
 } rbkit_object_data;
@@ -36,4 +37,12 @@ struct allocation_info {
   VALUE method_id;
   size_t generation;
 };
+
+// Declarations of ruby internals to silence warnings
+void rb_objspace_reachable_objects_from(VALUE obj, void (func)(VALUE, void *), void *data);
+void rb_objspace_reachable_objects_from_root(void (func)(const char *category, VALUE, void *), void *data);
+size_t rb_obj_memsize_of(VALUE);
+void rb_objspace_each_objects(
+    int (*callback)(void *start, void *end, size_t stride, void *data),
+    void *data);
 #endif

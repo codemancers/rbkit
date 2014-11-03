@@ -10,14 +10,14 @@ describe "obj_created event" do
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
     @foo_info = @message_list['payload']
-      .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='Foo' }
+      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_created] && x['payload']['class'] =='Foo' }
     @bar_info = @message_list['payload']
-      .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='Bar' }
+      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_created] && x['payload']['class'] =='Bar' }
     @short_lived_bar_info = @message_list['payload']
-      .select{|x| x['event_type'] == 'obj_created' && x['payload']['class'] =='ShortLivedBar' }
+      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_created] && x['payload']['class'] =='ShortLivedBar' }
   end
   it "should be part of message list" do
-    expect(@message_list).to have_message('obj_created')
+    expect(@message_list).to have_message(Rbkit::EVENT_TYPES[:obj_created])
   end
 
   it 'should record objects only once' do

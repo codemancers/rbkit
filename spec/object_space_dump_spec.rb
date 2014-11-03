@@ -12,7 +12,7 @@ describe "Objectspace dump" do
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
     @message = @message_list['payload']
-      .find{|x| x['event_type'] == 'object_space_dump'}
+      .find{|x| x['event_type'] == Rbkit::EVENT_TYPES[:object_space_dump]}
     @foo_info = @message['payload'].select{|x| x['class_name'] == 'Foo'}
     @bar_info = @message['payload'].select{|x| x['class_name'] == 'Bar'}
     @short_lived_bar_info = @message['payload'].select{|x| x['class_name'] == 'ShortLivedBar'}
@@ -20,7 +20,9 @@ describe "Objectspace dump" do
       .select{|obj| obj['object_id'] == @foo_info.first['references'].last }
   end
   it "should be part of message list" do
-    expect(@message_list).to have_message('object_space_dump').with_count(1)
+    expect(@message_list)
+      .to have_message(Rbkit::EVENT_TYPES[:object_space_dump])
+      .with_count(1)
   end
 
   it 'should record objects only once' do
