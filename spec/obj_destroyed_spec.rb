@@ -11,7 +11,7 @@ describe "obj_destroyed event" do
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
     @foo_info = @message_list['payload']
-      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_destroyed] && x['payload']['object_id'] == object_id_to_pointer_addr(@foo_obj.object_id)}
+      .select{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_destroyed] && x['payload']['object_id'] == @foo_obj.object_id }
     short_lived_bar_object_id = @message_list['payload']
       .find{|x| x['event_type'] == Rbkit::EVENT_TYPES[:obj_created] && x['payload']['class'] == 'ShortLivedBar'}['payload']['object_id']
     @short_lived_bar_info = @message_list['payload']

@@ -41,7 +41,7 @@ static void dump_root_object(VALUE obj, const char* category, rbkit_object_dump 
   rbkit_object_data *data = initialize_object_data(dump);
 
   //Set object id
-  data->object_id = (void *)obj;
+  data->object_id = FIX2ULONG(rb_obj_id(obj));
   //Set classname
   data->class_name = NULL;
   //Set classname of "symbols" category as "Symbol" to match <symbol>.class output
@@ -75,11 +75,11 @@ static void reachable_object_i(VALUE ref, void *arg)
 
   data->reference_count ++;
   if (data->reference_count == 1) {
-    data->references = malloc(sizeof(void *));
+    data->references = malloc(sizeof(unsigned long));
   } else {
-    data->references = realloc(data->references, data->reference_count * sizeof(void *) );
+    data->references = realloc(data->references, data->reference_count * sizeof(unsigned long) );
   }
-  data->references[data->reference_count - 1] = (void *)ref;
+  data->references[data->reference_count - 1] = FIX2ULONG(rb_obj_id(ref));
 }
 
 static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
@@ -87,7 +87,7 @@ static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
   // Get next available slot from page
   rbkit_object_data *data = initialize_object_data(dump);
   //Set object id
-  data->object_id = (void *)obj;
+  data->object_id = FIX2ULONG(rb_obj_id(obj));
 
   //Set classname
   VALUE klass = RBASIC_CLASS(obj);

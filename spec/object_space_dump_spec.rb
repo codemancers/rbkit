@@ -43,6 +43,12 @@ describe "Objectspace dump" do
   end
 
   it 'should record correct references' do
+    expect(@foo_info.first['object_id']).to eql @foo_obj.object_id
+    expect(@bar_info.first['object_id']).to eql @foo_obj.bar.object_id
+    expect(@array_info.first['object_id']).to eql @foo_obj.array.object_id
+  end
+
+  it 'should record correct references' do
     expect(@foo_info.first['references']).to include(@bar_info.first['object_id'])
     expect(@foo_info.first['references']).to include(@array_info.first['object_id'])
   end

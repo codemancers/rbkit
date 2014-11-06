@@ -20,13 +20,6 @@ static void pack_timestamp(msgpack_packer *packer) {
     msgpack_pack_double(packer, time_in_milliseconds);
 }
 
-static void pack_pointer(msgpack_packer *packer, void * pointer) {
-  char *pointer_string;
-  asprintf(&pointer_string, "%p", pointer);
-  pack_string(packer, pointer_string);
-  free(pointer_string);
-}
-
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
 {
   pack_string(packer, "event_type");
@@ -49,7 +42,7 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packe
   pack_string(packer, "payload");
   msgpack_pack_map(packer, 2);
   pack_string(packer, "object_id");
-  pack_pointer(packer, event->object_id);
+  msgpack_pack_unsigned_long(packer, event->object_id);
   pack_string(packer, "class");
   pack_string(packer, event->klass);
   //TODO: pack allocation info as well
@@ -62,7 +55,7 @@ static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_p
   pack_string(packer, "payload");
   msgpack_pack_map(packer, 1);
   pack_string(packer, "object_id");
-  pack_pointer(packer, event->object_id);
+  msgpack_pack_unsigned_long(packer, event->object_id);
 }
 
 static void pack_event_header_only(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -139,10 +132,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
       pack_string(packer, "object_id");
 
       // Value1 : pointer address of object
-      char * object_id;
-      asprintf(&object_id, "%p", data->object_id);
-      pack_string(packer, object_id);
-      free(object_id);
+      msgpack_pack_unsigned_long(packer, data->object_id);
 
       // Key2 : "class_name"
       pack_string(packer, "class_name");
@@ -157,12 +147,8 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
       msgpack_pack_array(packer, data->reference_count);
       if(data->reference_count != 0) {
         size_t count = 0;
-        for(; count < data->reference_count; count++ ) {
-          char * object_id;
-          asprintf(&object_id, "%p", data->references[count]);
-          pack_string(packer, object_id);
-          free(object_id);
-        }
+        for(; count < data->reference_count; count++ )
+          msgpack_pack_unsigned_long(packer, data->references[count]);
         free(data->references);
       }
 
