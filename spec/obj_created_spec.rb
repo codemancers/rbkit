@@ -27,10 +27,8 @@ describe "obj_created event" do
   end
 
   it 'should record correct object_id' do
-    expect(pointer_addr_to_object_id(@foo_info.first['payload']['object_id']))
-      .to eql @foo_obj.object_id
-    expect(pointer_addr_to_object_id(@bar_info.first['payload']['object_id']))
-      .to eql @foo_obj.bar.object_id
+    expect(@foo_info.first['payload']['object_id']).to eql @foo_obj.object_id
+    expect(@bar_info.first['payload']['object_id']).to eql @foo_obj.bar.object_id
   end
 
   it 'should record correct class' do
