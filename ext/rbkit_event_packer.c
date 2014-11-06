@@ -42,7 +42,7 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packe
   pack_string(packer, "payload");
   msgpack_pack_map(packer, 2);
   pack_string(packer, "object_id");
-  msgpack_pack_unsigned_long(packer, event->object_id);
+  msgpack_pack_unsigned_long_long(packer, event->object_id);
   pack_string(packer, "class");
   pack_string(packer, event->klass);
   //TODO: pack allocation info as well
@@ -55,7 +55,7 @@ static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_p
   pack_string(packer, "payload");
   msgpack_pack_map(packer, 1);
   pack_string(packer, "object_id");
-  msgpack_pack_unsigned_long(packer, event->object_id);
+  msgpack_pack_unsigned_long_long(packer, event->object_id);
 }
 
 static void pack_event_header_only(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -132,7 +132,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
       pack_string(packer, "object_id");
 
       // Value1 : pointer address of object
-      msgpack_pack_unsigned_long(packer, data->object_id);
+      msgpack_pack_unsigned_long_long(packer, data->object_id);
 
       // Key2 : "class_name"
       pack_string(packer, "class_name");
@@ -148,7 +148,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
       if(data->reference_count != 0) {
         size_t count = 0;
         for(; count < data->reference_count; count++ )
-          msgpack_pack_unsigned_long(packer, data->references[count]);
+          msgpack_pack_unsigned_long_long(packer, data->references[count]);
         free(data->references);
       }
 
