@@ -67,8 +67,9 @@ static void dump_root_object(VALUE obj, const char* category, rbkit_object_dump 
   dump->last->count++;
 }
 
-static void reachable_object_i(VALUE ref, rbkit_object_data *data)
+static void reachable_object_i(VALUE ref, void *arg)
 {
+  rbkit_object_data *data = (rbkit_object_data *)arg;
   if(RBASIC_CLASS(ref) == ref)
     return;
 

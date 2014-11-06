@@ -18,17 +18,16 @@ VALUE rbkit_event_types_as_hash();
 
 typedef struct _rbkit_event_header {
   rbkit_event_type event_type;
-  double timestamp; //In milliseconds
 } rbkit_event_header;
 
 typedef struct _rbkit_obj_created_event {
   rbkit_event_header event_header;
   void *object_id;
-  char *klass;
+  const char *klass;
   rbkit_allocation_info *allocation_info;
 } rbkit_obj_created_event;
 
-rbkit_obj_created_event *new_rbkit_obj_created_event(void *object_id, char *klass, rbkit_allocation_info *info);
+rbkit_obj_created_event *new_rbkit_obj_created_event(void *object_id, const char *klass, rbkit_allocation_info *info);
 
 typedef struct _rbkit_obj_destroyed_event {
   rbkit_event_header event_header;

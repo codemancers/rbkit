@@ -53,7 +53,7 @@ void get_event_collection_message(msgpack_sbuffer *sbuf) {
 
   rbkit_event_collection_event *event = new_rbkit_event_collection_event(message_array, used_memsize, no_of_messages);
   msgpack_packer* pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
-  pack_event(event, pk);
+  pack_event((rbkit_event_header *)event, pk);
   free(event);
   msgpack_packer_free(pk);
 }

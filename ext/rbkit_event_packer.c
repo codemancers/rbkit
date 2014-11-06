@@ -2,7 +2,7 @@
 #include "rbkit_object_graph.h"
 #include <sys/time.h>
 
-static void pack_string(msgpack_packer *packer, char *string) {
+static void pack_string(msgpack_packer *packer, const char *string) {
   if(string == NULL) {
     msgpack_pack_nil(packer);
   } else {
@@ -55,7 +55,7 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packe
   //TODO: pack allocation info as well
 }
 
-static void pack_obj_destroyed_event(rbkit_obj_created_event *event, msgpack_packer *packer) {
+static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -236,10 +236,10 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
 
   switch (event_header->event_type) {
     case obj_created:
-      pack_obj_created_event(event_header, packer);
+      pack_obj_created_event((rbkit_obj_created_event *)event_header, packer);
       break;
     case obj_destroyed:
-      pack_obj_destroyed_event(event_header, packer);
+      pack_obj_destroyed_event((rbkit_obj_destroyed_event *)event_header, packer);
       break;
     case gc_start:
       pack_event_header_only(event_header, packer);
@@ -251,15 +251,17 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
       pack_event_header_only(event_header, packer);
       break;
     case object_space_dump:
-      pack_object_space_dump_event(event_header, packer);
+      pack_object_space_dump_event((rbkit_object_space_dump_event *)event_header, packer);
       break;
     case gc_stats:
-      pack_gc_stats_event(event_header, packer);
+      pack_gc_stats_event((rbkit_hash_event *)event_header, packer);
       break;
     case event_collection:
-      pack_event_collection_event(event_header, packer);
+      pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
       break;
     default:
-      fprintf(stderr, "Don't know how to pack event type : %u\n", event_header->event_type);
+      rb_raise(rb_eNotImpError,
+          "Rbkit : Unpacking of event type '%u' not implemented",
+          event_header->event_type);
   }
 }
