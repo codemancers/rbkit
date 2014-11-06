@@ -343,4 +343,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
   rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
   rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
+  rb_define_const(objectStatsModule, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
 }
