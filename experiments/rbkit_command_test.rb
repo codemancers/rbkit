@@ -43,11 +43,30 @@ socket.subscribe("")
 socket.connect("tcp://#{server_ip}:5555")
 
 begin
+  index = 0
   loop do
     message = socket.recv
+
     unpacked_message = MessagePack.unpack(message)
     PP.pp(unpacked_message, output_file)
     output_file.flush
+
+    already_got = []
+    payload = unpacked_message['payload'].dup
+    payload.each do |event|
+      next if already_got.include?(event['event_type'])
+
+      already_got << event['event_type']
+      unpacked_message['payload'] = [event]
+
+      filename = "%05d" % index
+      File.open("/tmp/rbkitevents/#{filename}", "w") do |f|
+        f.write MessagePack.pack(unpacked_message)
+      end
+
+      index = index + 1
+    end
+
   end
 ensure
   output_file.close

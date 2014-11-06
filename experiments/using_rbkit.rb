@@ -5,6 +5,9 @@ require 'rbkit'
 
 Rbkit.start_profiling
 
+kumar = :kumar
+yuva  = :yuva
+
 class Foo
   def initialize(name)
     @name = name
