@@ -5,9 +5,9 @@
 #define RBKIT_OBJECT_DUMP_PAGE_SIZE 1000
 
 typedef struct _rbkit_object_data {
-  unsigned long object_id;
+  unsigned long long object_id;
   const char * class_name;
-  unsigned long * references;
+  unsigned long long * references;
   size_t reference_count;
   const char * file;
   unsigned long line;

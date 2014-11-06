@@ -14,7 +14,7 @@ VALUE rbkit_event_types_as_hash() {
   return events;
 }
 
-rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long object_id,
+rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long long object_id,
     const char *klass, rbkit_allocation_info *info) {
   rbkit_obj_created_event *event = malloc(sizeof(rbkit_obj_created_event));
 
@@ -27,7 +27,7 @@ rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long object_id,
   return event;
 }
 
-rbkit_obj_destroyed_event *new_rbkit_obj_destroyed_event(unsigned long object_id) {
+rbkit_obj_destroyed_event *new_rbkit_obj_destroyed_event(unsigned long long object_id) {
   rbkit_obj_destroyed_event *event = malloc(sizeof(rbkit_obj_destroyed_event));
 
   rbkit_event_header *header = (rbkit_event_header *)event;

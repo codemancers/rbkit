@@ -75,9 +75,9 @@ static void reachable_object_i(VALUE ref, void *arg)
 
   data->reference_count ++;
   if (data->reference_count == 1) {
-    data->references = malloc(sizeof(unsigned long));
+    data->references = malloc(sizeof(unsigned long long));
   } else {
-    data->references = realloc(data->references, data->reference_count * sizeof(unsigned long) );
+    data->references = realloc(data->references, data->reference_count * sizeof(unsigned long long) );
   }
   data->references[data->reference_count - 1] = FIX2ULONG(rb_obj_id(ref));
 }
