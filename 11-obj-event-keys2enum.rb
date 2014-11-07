@@ -20,7 +20,7 @@ def old2new(object)
 end
 
 
-file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/hugedump"
+file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/gc_start"
 
 message = File.read(file)
 p unpacked_message = MessagePack.unpack(message)
@@ -39,9 +39,9 @@ end
 
 p unpacked
 
-unpacked[2].first[2] = unpacked[2].first[2].map { |o| old2new(o) }
+# unpacked[2].first[2] = unpacked[2].first[2].map { |o| old2new(o) }
 
-p unpacked
+# p unpacked
 
 
 # unpacked_message['payload'].first['payload'].map do |k, v|
