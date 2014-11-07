@@ -1,12 +1,11 @@
 require 'msgpack'
 
-message = File.read("/Users/yuva/nomads/rbkit-client/tests/msgpack/objcreated")
+message = File.read("/Users/yuva/nomads/rbkit-client/tests/msgpack/objdestroyed")
 p unpacked_message = MessagePack.unpack(message)
 
-dump = MessagePack.unpack(File.read("/Users/yuva/nomads/rbkit-client/tests/msgpack/objcreated"))
-unpacked_message['payload'] = [dump]
+unpacked_message['event_type'] = 7
 
 
-File.open("/Users/yuva/nomads/rbkit-client/tests/msgpack/objcreated", "w") do |f|
+File.open("/Users/yuva/nomads/rbkit-client/tests/msgpack/objdestroyed", "w") do |f|
   f.write MessagePack.pack(unpacked_message)
 end
