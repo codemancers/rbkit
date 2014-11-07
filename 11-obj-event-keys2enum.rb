@@ -11,7 +11,7 @@ ek = {
 def old2new(object)
   {
     3 => object['object_id'],
-    4 => object['class_name'],
+    4 => object['class'],
     5 => object['references'],
     6 => object['file'],
     7 => object['line'],
@@ -20,7 +20,7 @@ def old2new(object)
 end
 
 
-file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/objdestroyed"
+file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/objcreated"
 
 message = File.read(file)
 p unpacked_message = MessagePack.unpack(message)
