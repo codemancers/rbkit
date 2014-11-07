@@ -20,7 +20,7 @@ def old2new(object)
 end
 
 
-file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/gc_start"
+file = "/Users/yuva/nomads/rbkit-client/tests/msgpack/gcstats"
 
 message = File.read(file)
 p unpacked_message = MessagePack.unpack(message)
