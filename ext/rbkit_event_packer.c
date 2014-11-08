@@ -22,10 +22,10 @@ static void pack_timestamp(msgpack_packer *packer) {
 
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
 {
-  pack_string(packer, "event_type");
+  msgpack_pack_int(packer, rbkit_message_field_event_type);
   msgpack_pack_int(packer, event_type);
 
-  pack_string(packer, "timestamp");
+  msgpack_pack_int(packer, rbkit_message_field_timestamp);
   pack_timestamp(packer);
 }
 
@@ -39,11 +39,11 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packe
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
-  pack_string(packer, "payload");
+  msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, 2);
-  pack_string(packer, "object_id");
+  msgpack_pack_int(packer, rbkit_message_field_object_id);
   msgpack_pack_unsigned_long_long(packer, event->object_id);
-  pack_string(packer, "class");
+  msgpack_pack_int(packer, rbkit_message_field_class_name);
   pack_string(packer, event->klass);
   //TODO: pack allocation info as well
 }
@@ -52,9 +52,9 @@ static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_p
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
 
-  pack_string(packer, "payload");
+  msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, 1);
-  pack_string(packer, "object_id");
+  msgpack_pack_int(packer, rbkit_message_field_object_id);
   msgpack_pack_unsigned_long_long(packer, event->object_id);
 }
 
@@ -95,7 +95,7 @@ static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer)
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
   int size = RHASH_SIZE(hash);
-  pack_string(packer, "payload");
+  msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, size);
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
@@ -104,7 +104,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   rbkit_object_dump *dump = event->dump;
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
-  pack_string(packer, "payload");
+  msgpack_pack_int(packer, rbkit_message_field_payload);
   // Set size of array to hold all objects
   msgpack_pack_array(packer, dump->object_count);
 
@@ -128,20 +128,20 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
 
       msgpack_pack_map(packer, 6);
 
-      // Key1 : "object_id"
-      pack_string(packer, "object_id");
+      // Key1 : rbkit_message_field_object_id
+      msgpack_pack_int(packer, rbkit_message_field_object_id);
 
       // Value1 : pointer address of object
       msgpack_pack_unsigned_long_long(packer, data->object_id);
 
-      // Key2 : "class_name"
-      pack_string(packer, "class_name");
+      // Key2 : rbkit_message_field_class_name
+      msgpack_pack_int(packer, rbkit_message_field_class_name);
 
       // Value2 : Class name of object
       pack_string(packer, data->class_name);
 
-      // Key3 : "references"
-      pack_string(packer, "references");
+      // Key3 : rbkit_message_field_references
+      msgpack_pack_int(packer, rbkit_message_field_references);
 
       // Value3 : References held by the object
       msgpack_pack_array(packer, data->reference_count);
@@ -152,14 +152,14 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
         free(data->references);
       }
 
-      // Key4 : "file"
-      pack_string(packer, "file");
+      // Key4 : rbkit_message_field_file
+      msgpack_pack_int(packer, rbkit_message_field_file);
 
       // Value4 : File path where object is defined
       pack_string(packer, data->file);
 
-      // Key5 : "line"
-      pack_string(packer, "line");
+      // Key5 : rbkit_message_field_line
+      msgpack_pack_int(packer, rbkit_message_field_line);
 
       // Value5 : Line no where object is defined
       if(data->line == 0)
@@ -167,8 +167,8 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
       else
         msgpack_pack_unsigned_long(packer, data->line);
 
-      // Key6 : "size"
-      pack_string(packer, "size");
+      // Key6 : rbkit_message_field_size
+      msgpack_pack_int(packer, rbkit_message_field_size);
 
       // Value6 : Size of the object in memory
       if(data->size == 0)
@@ -186,9 +186,9 @@ static void pack_event_collection_event(rbkit_event_collection_event *event, msg
   msgpack_sbuffer *sbuf = packer->data;
   msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
-  pack_string(packer, "message_counter");
+  msgpack_pack_int(packer, rbkit_message_field_message_counter);
   msgpack_pack_unsigned_long(packer, get_message_counter());
-  pack_string(packer, "payload");
+  msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_array(packer, event->message_count);
   sbuf->data = realloc(sbuf->data, event->buffer_size + sbuf->size);
   memcpy(sbuf->data + sbuf->size, event->buffer, event->buffer_size);
@@ -229,4 +229,20 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
           "Rbkit : Unpacking of event type '%u' not implemented",
           event_header->event_type);
   }
+}
+
+VALUE rbkit_message_fields_as_hash() {
+  VALUE events = rb_hash_new();
+  rb_hash_aset(events, ID2SYM(rb_intern("event_type")), INT2FIX(rbkit_message_field_event_type));
+  rb_hash_aset(events, ID2SYM(rb_intern("timestamp")), INT2FIX(rbkit_message_field_timestamp));
+  rb_hash_aset(events, ID2SYM(rb_intern("payload")), INT2FIX(rbkit_message_field_payload));
+  rb_hash_aset(events, ID2SYM(rb_intern("object_id")), INT2FIX(rbkit_message_field_object_id));
+  rb_hash_aset(events, ID2SYM(rb_intern("class_name")), INT2FIX(rbkit_message_field_class_name));
+  rb_hash_aset(events, ID2SYM(rb_intern("references")), INT2FIX(rbkit_message_field_references));
+  rb_hash_aset(events, ID2SYM(rb_intern("file")), INT2FIX(rbkit_message_field_file));
+  rb_hash_aset(events, ID2SYM(rb_intern("line")), INT2FIX(rbkit_message_field_line));
+  rb_hash_aset(events, ID2SYM(rb_intern("size")), INT2FIX(rbkit_message_field_size));
+  rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
+  OBJ_FREEZE(events);
+  return events;
 }

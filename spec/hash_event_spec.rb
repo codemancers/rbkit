@@ -3,6 +3,8 @@ require 'msgpack'
 
 describe 'send_hash_as_event' do
   let(:hash) { {'foo' => 'bar', 123 => "hello world"} }
+  let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }
+  let(:event_type) { Rbkit::MESSAGE_FIELDS[:event_type] }
   describe 'when event_type is known' do
     before do
       Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false)
@@ -12,8 +14,8 @@ describe 'send_hash_as_event' do
       Rbkit.stop_server
     end
     it 'should create a custom event with the serialized hash' do
-      expect(@message['payload'].first['event_type']).to eql Rbkit::EVENT_TYPES[:gc_stats]
-      expect(@message['payload'].first['payload']).to eql hash
+      expect(@message[payload].first[event_type]).to eql Rbkit::EVENT_TYPES[:gc_stats]
+      expect(@message[payload].first[payload]).to eql hash
     end
   end
 

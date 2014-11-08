@@ -1,7 +1,7 @@
 RSpec::Matchers.define :have_message do |event_type|
   match do |unpacked_message_list|
-    messages = unpacked_message_list['payload'].select do |event|
-      event['event_type'] == event_type
+    messages = unpacked_message_list[Rbkit::MESSAGE_FIELDS[:payload]].select do |event|
+      event[Rbkit::MESSAGE_FIELDS[:event_type]] == event_type
     end
 
     if @count
