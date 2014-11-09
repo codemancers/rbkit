@@ -14,7 +14,8 @@ enum EventType {
   gc_end_s,
   object_space_dump,
   gc_stats,
-  event_collection
+  event_collection,
+  handshake
 }
 ```
 
@@ -30,7 +31,8 @@ ie,
   "gc_end_s"          => 4,
   "object_space_dump" => 5,
   "gc_stats"          => 6,
-  "event_collection"  => 7
+  "event_collection"  => 7,
+  "handshake"         => 8
 }
 ```
 
@@ -61,6 +63,25 @@ other event messages.
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>},
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>}
   ]
+}
+```
+
+### Message frame for HANDSHAKE :
+
+Handshake is a special message which is sent synchronously over the REQ-REP
+socket pair and not on the PUB socket. When a "handshake" command is send by
+the client, the server responses with the Rbkit status. The handshake reply
+is of the following format :
+
+```yaml
+{
+  event_type: "handshake",
+  timestamp: <timestamp in milliseconds>,
+  payload: {
+    "pwd" => <working directory of the app>,
+    "pid" => <PID of the ruby process>,
+    "object_trace_enabled" => <0 or 1>
+  }
 }
 ```
 

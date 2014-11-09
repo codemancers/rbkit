@@ -196,6 +196,31 @@ int tracer_string_send(void *socket, const char *message) {
    return size;
 }
 
+static VALUE rbkit_status_as_hash() {
+  VALUE status = rb_hash_new();
+  VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
+  int object_trace_enabled = (logger && logger->enabled) ? 1 : 0;
+  rb_hash_aset(status, ID2SYM(rb_intern("pwd")), rb_dir_getwd());
+  rb_hash_aset(status, ID2SYM(rb_intern("pid")), pid);
+  rb_hash_aset(status, ID2SYM(rb_intern("object_trace_enabled")), INT2FIX(object_trace_enabled));
+  return status;
+}
+
+static void send_handshake_response() {
+  msgpack_sbuffer *buffer = msgpack_sbuffer_new();
+  msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash());
+  pack_event((rbkit_event_header *)event, packer);
+  free(event);
+
+  if(buffer && buffer->size > 0)
+    zmq_send(zmq_response_socket, buffer->data, buffer->size, 0);
+
+  msgpack_sbuffer_free(buffer);
+  msgpack_packer_free(packer);
+}
+
 static VALUE poll_for_request() {
   // Wait for 100 millisecond and check if there is a message
   // we can't wait here indefenitely because ruby is not aware this is a
@@ -204,7 +229,11 @@ static VALUE poll_for_request() {
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
-    tracer_string_send(zmq_response_socket, "ok");
+    if(strcmp(message, "handshake") == 0) {
+      send_handshake_response();
+    } else {
+      tracer_string_send(zmq_response_socket, "ok");
+    }
     VALUE command_ruby_string = rb_str_new_cstr(message);
     free(message);
     return command_ruby_string;
@@ -342,6 +371,7 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
   rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
+  rb_define_module_function(objectStatsModule, "status", rbkit_status_as_hash, 0);
   rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
   rb_define_const(objectStatsModule, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
 }
