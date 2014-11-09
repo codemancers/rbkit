@@ -3,22 +3,8 @@ Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some hist
 ## Event types
 
 EventType is an integer value indicating the type of event
-contained in the message. It's basically the following enum : 
-
-```c
-enum EventType {
-  obj_created,
-  obj_destroyed,
-  gc_start,
-  gc_end_m,
-  gc_end_s,
-  object_space_dump,
-  gc_stats,
-  event_collection
-}
-```
-
-ie, 
+contained in the message. `Rbkit::EVENT_TYPE`
+gives you an exhaustive list of event types, which is :
 
 ```ruby
 # Rbkit::EVENT_TYPES
@@ -30,9 +16,14 @@ ie,
   "gc_end_s"          => 4,
   "object_space_dump" => 5,
   "gc_stats"          => 6,
-  "event_collection"  => 7
+  "event_collection"  => 7,
+  "method_call"       => 8
 }
 ```
+
+The keys of all event message hashes are integer values whose enum names
+are used below. `Rbkit::MESSAGE_FIELDS` gives you the exhaustive list of
+enums used.
 
 ## Message frames
 
@@ -42,6 +33,7 @@ Generic message frame is of the format :
 {
   event_type: <EventType>,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: <PAYLOAD> # Optional
 }
 ```
@@ -57,9 +49,10 @@ other event messages.
   event_type: "event_collection",
   message_counter: <incrementing counter>,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: [
-    {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>},
-    {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>}
+    {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, cpu_time: <CPU_TIME>, payload: <PAYLOAD>},
+    {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, cpu_time: <CPU_TIME>, payload: <PAYLOAD>}
   ]
 }
 ```
@@ -73,6 +66,7 @@ are sent as the payload.
 {
   event_type: obj_created,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: {
     object_id: <OBJECT_ID>,
     class_name: <CLASS_NAME>
@@ -86,8 +80,24 @@ are sent as the payload.
 {
   event_type: obj_destroyed,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: {
     object_id: <OBJECT_ID>
+  }
+}
+```
+
+### Message frame for METHOD_CALL :
+
+```yaml
+{
+  event_type: method_call,
+  timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
+  payload: {
+    method_name: <name of called method>,
+    file: <file path where method is defined>,
+    line: <lineno where method is defined>
   }
 }
 ```
@@ -100,6 +110,7 @@ When the GC_START event is triggered, no payload is sent.
 {
   event_type: gc_start,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>
 }
 ```
 
@@ -111,6 +122,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 {
   event_type: gc_end_s,
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>
 }
 ```
 
@@ -120,6 +132,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 {
   event_type: object_space_dump
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: [
     {
       object_id: <OBJECT_ID>,
@@ -141,6 +154,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 {
   event_type: "gc_stats",
   timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
   payload: {
      count:
      heap_user:

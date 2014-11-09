@@ -11,7 +11,8 @@ typedef enum _event_type {
   gc_end_s,
   object_space_dump,
   gc_stats,
-  event_collection
+  event_collection,
+  method_call
 } rbkit_event_type;
 
 VALUE rbkit_event_types_as_hash();
@@ -58,5 +59,14 @@ typedef struct _rbkit_event_collection_event {
 } rbkit_event_collection_event;
 
 rbkit_event_collection_event *new_rbkit_event_collection_event(void * buffer, size_t buffer_size, size_t message_count);
+
+typedef struct _rbkit_method_call_event {
+  rbkit_event_header event_header;
+  const char *method_name;
+  unsigned long line;
+  const char *file;
+} rbkit_method_call_event;
+
+rbkit_method_call_event *new_rbkit_method_call_event();
 
 #endif

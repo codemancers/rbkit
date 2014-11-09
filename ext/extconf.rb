@@ -12,6 +12,11 @@ if ENV['RBKIT_DEV']
   $defs << '-DRBKIT_DEV' # Set macro named RBKIT_DEV
 end
 
+# Linux needs rt lib for clock_gettime function.
+if RUBY_PLATFORM =~ /linux/
+  $LDFLAGS += " -lrt" # for clock_gettime
+end
+
 def check_and_install_with_homebrew(package)
   return false if ENV['RBKIT_NO_HOMEBREW']
   puts green("Looks like you're on OSX. Do you want to use homebrew to install #{package}? (y/Y/n/N) :")

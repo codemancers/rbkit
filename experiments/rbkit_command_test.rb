@@ -8,6 +8,8 @@ Thread.abort_on_exception = true
 commands = [
   'start_memory_profile',
   'stop_memory_profile',
+  'start_cpu_profile',
+  'stop_cpu_profile',
   'objectspace_snapshot',
   'trigger_gc'
 ]

@@ -11,12 +11,14 @@
 // Structure is used to store profiling data
 typedef struct _rbkit_logger {
   VALUE hooks[3];
-  VALUE enabled;
+  VALUE object_trace_enabled;
+  VALUE execution_trace_enabled;
   void *data;
   st_table *object_table;
   st_table *str_table;
   VALUE newobj_trace;
   VALUE freeobj_trace;
+  VALUE execution_trace;
   msgpack_sbuffer *sbuf;
   msgpack_packer *msgpacker;
 } rbkit_logger;

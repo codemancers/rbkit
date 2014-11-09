@@ -1,6 +1,6 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
-#include <sys/time.h>
+#include "rbkit_time_helper.h"
 
 static void pack_string(msgpack_packer *packer, const char *string) {
   if(string == NULL) {
@@ -12,21 +12,16 @@ static void pack_string(msgpack_packer *packer, const char *string) {
   }
 }
 
-static void pack_timestamp(msgpack_packer *packer) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
-    msgpack_pack_double(packer, time_in_milliseconds);
-}
-
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
 {
   msgpack_pack_int(packer, rbkit_message_field_event_type);
   msgpack_pack_int(packer, event_type);
 
   msgpack_pack_int(packer, rbkit_message_field_timestamp);
-  pack_timestamp(packer);
+  msgpack_pack_double(packer, get_wall_time());
+
+  msgpack_pack_int(packer, rbkit_message_field_cpu_time);
+  msgpack_pack_double(packer, get_cpu_time());
 }
 
 static unsigned long message_counter = 0;
@@ -36,7 +31,7 @@ static unsigned long get_message_counter() {
 }
 
 static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packer *packer) {
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
@@ -49,7 +44,7 @@ static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packe
 }
 
 static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_packer *packer) {
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
@@ -59,7 +54,7 @@ static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_p
 }
 
 static void pack_event_header_only(rbkit_event_header *event_header, msgpack_packer *packer) {
-  msgpack_pack_map(packer, 2);
+  msgpack_pack_map(packer, 3);
   pack_event_header(packer, event_header->event_type);
 }
 
@@ -91,7 +86,7 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
 }
 
 static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer) {
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
   int size = RHASH_SIZE(hash);
@@ -102,7 +97,7 @@ static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer)
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
   rbkit_object_dump *dump = event->dump;
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
   msgpack_pack_int(packer, rbkit_message_field_payload);
   // Set size of array to hold all objects
@@ -184,7 +179,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
 
 static void pack_event_collection_event(rbkit_event_collection_event *event, msgpack_packer *packer) {
   msgpack_sbuffer *sbuf = packer->data;
-  msgpack_pack_map(packer, 4);
+  msgpack_pack_map(packer, 5);
   pack_event_header(packer, event->event_header.event_type);
   msgpack_pack_int(packer, rbkit_message_field_message_counter);
   msgpack_pack_unsigned_long(packer, get_message_counter());
@@ -193,6 +188,21 @@ static void pack_event_collection_event(rbkit_event_collection_event *event, msg
   sbuf->data = realloc(sbuf->data, event->buffer_size + sbuf->size);
   memcpy(sbuf->data + sbuf->size, event->buffer, event->buffer_size);
   sbuf->size += event->buffer_size;
+}
+
+static void pack_method_call_event(rbkit_method_call_event *event, msgpack_packer *packer) {
+  msgpack_sbuffer *sbuf = packer->data;
+  msgpack_pack_map(packer, 4);
+  pack_event_header(packer, event->event_header.event_type);
+
+  msgpack_pack_int(packer, rbkit_message_field_payload);
+  msgpack_pack_map(packer, 3);
+  msgpack_pack_int(packer, rbkit_message_field_method_name);
+  pack_string(packer, event->method_name);
+  msgpack_pack_int(packer, rbkit_message_field_file);
+  pack_string(packer, event->file);
+  msgpack_pack_int(packer, rbkit_message_field_line);
+  msgpack_pack_unsigned_long(packer, event->line);
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -224,6 +234,9 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
       break;
+    case method_call:
+      pack_method_call_event((rbkit_method_call_event *)event_header, packer);
+      break;
     default:
       rb_raise(rb_eNotImpError,
           "Rbkit : Unpacking of event type '%u' not implemented",
@@ -243,6 +256,8 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("line")), INT2FIX(rbkit_message_field_line));
   rb_hash_aset(events, ID2SYM(rb_intern("size")), INT2FIX(rbkit_message_field_size));
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
+  rb_hash_aset(events, ID2SYM(rb_intern("method_name")), INT2FIX(rbkit_message_field_method_name));
+  rb_hash_aset(events, ID2SYM(rb_intern("cpu_time")), INT2FIX(rbkit_message_field_cpu_time));
   OBJ_FREEZE(events);
   return events;
 }

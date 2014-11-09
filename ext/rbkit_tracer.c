@@ -13,7 +13,6 @@
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
 #include "rbkit_test_helper.h"
-#include <sys/time.h>
 
 static const char *event_names[] = {
   "gc_start",
@@ -33,9 +32,11 @@ static rbkit_logger * get_trace_logger() {
   int i = 0;
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
-    logger->enabled = Qfalse;
+    logger->object_trace_enabled = Qfalse;
+    logger->execution_trace_enabled = Qfalse;
     logger->newobj_trace = 0;
     logger->freeobj_trace = 0;
+    logger->execution_trace = 0;
     logger->object_table = st_init_numtable();
     logger->str_table = st_init_strtable();
 
@@ -126,6 +127,26 @@ static void freeobj_i(VALUE tpval, void *data) {
   add_message(arg->sbuf);
 }
 
+static void execution_i(VALUE tpval, void *data) {
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  rbkit_logger *arg = (rbkit_logger *)data;
+  switch (rb_tracearg_event_flag(tparg)) {
+    case RUBY_EVENT_CALL: {
+      rbkit_method_call_event *event = new_rbkit_method_call_event();
+      pack_event((rbkit_event_header *)event, arg->msgpacker);
+      free(event);
+      add_message(arg->sbuf);
+      break;
+    }
+    case RUBY_EVENT_RETURN:
+      //TODO
+      break;
+    case RUBY_EVENT_LINE:
+      //TODO
+      break;
+  }
+}
+
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   int default_pub_port = 5555;
   int default_request_port = 5556;
@@ -151,8 +172,10 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   logger = get_trace_logger();
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
+  logger->execution_trace = rb_tracepoint_new(0, RUBY_EVENT_CALL | RUBY_EVENT_RETURN | RUBY_EVENT_LINE, execution_i, logger);
   rb_gc_register_mark_object(logger->newobj_trace);
   rb_gc_register_mark_object(logger->freeobj_trace);
+  rb_gc_register_mark_object(logger->execution_trace);
   create_gc_hooks();
 
   char zmq_endpoint[14];
@@ -213,7 +236,7 @@ static VALUE poll_for_request() {
   }
 }
 
-static VALUE stop_stat_tracing() {
+static VALUE stop_object_trace() {
   if (logger->hooks[0] != 0) {
     rb_tracepoint_disable(logger->hooks[0]);
     rb_tracepoint_disable(logger->hooks[1]);
@@ -224,7 +247,17 @@ static VALUE stop_stat_tracing() {
     rb_tracepoint_disable(logger->newobj_trace);
     rb_tracepoint_disable(logger->freeobj_trace);
   }
-  logger->enabled = Qfalse;
+  logger->object_trace_enabled = Qfalse;
+  return Qnil;
+}
+
+static VALUE stop_execution_trace() {
+  if (logger->execution_trace_enabled == Qfalse)
+    return Qnil;
+  if (logger->execution_trace) {
+    rb_tracepoint_disable(logger->execution_trace);
+  }
+  logger->execution_trace_enabled = Qfalse;
   return Qnil;
 }
 
@@ -240,8 +273,8 @@ static int free_values_i(st_data_t key, st_data_t value, void *data) {
 }
 
 static VALUE stop_stat_server() {
-  if (logger->enabled == Qtrue)
-    stop_stat_tracing();
+  if (logger->object_trace_enabled == Qtrue)
+    stop_object_trace();
 
   // Destroy the list which aggregates messages
   message_list_destroy();
@@ -280,8 +313,8 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   return Qnil;
 }
 
-static VALUE start_stat_tracing() {
-  if (logger->enabled == Qtrue)
+static VALUE start_object_trace() {
+  if (logger->object_trace_enabled == Qtrue)
     return Qnil;
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
@@ -289,7 +322,15 @@ static VALUE start_stat_tracing() {
   for (i=0; i<3; i++) {
     rb_tracepoint_enable(logger->hooks[i]);
   }
-  logger->enabled = Qtrue;
+  logger->object_trace_enabled = Qtrue;
+  return Qnil;
+}
+
+static VALUE start_execution_trace() {
+  if (logger->execution_trace_enabled == Qtrue)
+    return Qnil;
+  rb_tracepoint_enable(logger->execution_trace);
+  logger->execution_trace_enabled = Qtrue;
   return Qnil;
 }
 
@@ -335,8 +376,10 @@ void Init_rbkit_tracer(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
   rb_define_module_function(objectStatsModule, "stop_stat_server", stop_stat_server, 0);
-  rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
-  rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_module_function(objectStatsModule, "start_object_trace", start_object_trace, 0);
+  rb_define_module_function(objectStatsModule, "stop_object_trace", stop_object_trace, 0);
+  rb_define_module_function(objectStatsModule, "start_execution_trace", start_execution_trace, 0);
+  rb_define_module_function(objectStatsModule, "stop_execution_trace", stop_execution_trace, 0);
   rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
   rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
