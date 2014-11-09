@@ -116,6 +116,9 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 
 ### Message frame for OBJECT_SPACE_DUMP :
 
+Object space dump is split into multiple messages. Each message is of
+the following format :
+
 ```yaml
 {
   event_type: object_space_dump
