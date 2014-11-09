@@ -138,9 +138,13 @@ static void execution_i(VALUE tpval, void *data) {
       add_message(arg->sbuf);
       break;
     }
-    case RUBY_EVENT_RETURN:
-      //TODO
+    case RUBY_EVENT_RETURN: {
+      rbkit_method_call_event *event = new_rbkit_method_return_event();
+      pack_event((rbkit_event_header *)event, arg->msgpacker);
+      free(event);
+      add_message(arg->sbuf);
       break;
+    }
     case RUBY_EVENT_LINE:
       //TODO
       break;

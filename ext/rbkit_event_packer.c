@@ -237,6 +237,9 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
     case method_call:
       pack_method_call_event((rbkit_method_call_event *)event_header, packer);
       break;
+    case method_return:
+      pack_method_call_event((rbkit_method_call_event *)event_header, packer);
+      break;
     default:
       rb_raise(rb_eNotImpError,
           "Rbkit : Unpacking of event type '%u' not implemented",

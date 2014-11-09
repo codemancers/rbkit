@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'support/have_message_matcher'
 require 'msgpack'
 
-describe "method_call event" do
+describe "method_return event" do
   def dummy_method
     __LINE__
   end
@@ -11,9 +11,16 @@ describe "method_call event" do
   let(:method_name) { Rbkit::MESSAGE_FIELDS[:method_name] }
   let(:file) { Rbkit::MESSAGE_FIELDS[:file] }
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
-  let(:method_data) do
+  let(:cpu_time) { Rbkit::MESSAGE_FIELDS[:cpu_time] }
+  let(:timestamp) { Rbkit::MESSAGE_FIELDS[:timestamp] }
+  let(:method_call_data) do
     @message_list[payload]
       .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:method_call] &&
+        x[payload][file] == __FILE__ }
+  end
+  let(:method_return_data) do
+    @message_list[payload]
+      .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:method_return] &&
         x[payload][file] == __FILE__ }
   end
   before(:all) do
@@ -25,21 +32,21 @@ describe "method_call event" do
     @message_list  = MessagePack.unpack packed_message
   end
   it "should be part of message list" do
-    expect(@message_list).to have_message(Rbkit::EVENT_TYPES[:method_call])
+    expect(@message_list).to have_message(Rbkit::EVENT_TYPES[:method_return])
   end
   it 'should trace method call only once' do
-    expect(method_data.size).to eql 1
+    expect(method_call_data.size).to eql 1
+  end
+  it 'should trace method return only once' do
+    expect(method_return_data.size).to eql 1
   end
   it 'should record correct method name' do
-    expect(method_data.first[payload][method_name]).to eql 'dummy_method'
+    expect(method_return_data.first[payload][method_name]).to eql 'dummy_method'
   end
   it 'should record correct method file' do
-    expect(method_data.first[payload][file]).to eql __FILE__
+    expect(method_return_data.first[payload][file]).to eql __FILE__
   end
   it 'should record correct method line' do
-    expect(method_data.first[payload][line]).to eql @line - 1
+    expect(method_return_data.first[payload][line]).to eql @line + 1
   end
 end
-
-
-

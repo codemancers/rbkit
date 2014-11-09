@@ -11,6 +11,7 @@ VALUE rbkit_event_types_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("gc_stats")), INT2FIX(gc_stats));
   rb_hash_aset(events, ID2SYM(rb_intern("event_collection")), INT2FIX(event_collection));
   rb_hash_aset(events, ID2SYM(rb_intern("method_call")), INT2FIX(method_call));
+  rb_hash_aset(events, ID2SYM(rb_intern("method_return")), INT2FIX(method_return));
   OBJ_FREEZE(events);
   return events;
 }
@@ -75,6 +76,21 @@ rbkit_method_call_event *new_rbkit_method_call_event() {
 
   rbkit_event_header *header = (rbkit_event_header *)event;
   header->event_type = method_call;
+
+  ID mid;
+  VALUE klass;
+  rb_frame_method_id_and_class(&mid, &klass);
+  event->method_name = rb_id2name(mid);
+  event->file = rb_sourcefile();
+  event->line = rb_sourceline();
+  return event;
+}
+
+rbkit_method_call_event *new_rbkit_method_return_event() {
+  rbkit_method_call_event *event = malloc(sizeof(rbkit_method_call_event));
+
+  rbkit_event_header *header = (rbkit_event_header *)event;
+  header->event_type = method_return;
 
   ID mid;
   VALUE klass;

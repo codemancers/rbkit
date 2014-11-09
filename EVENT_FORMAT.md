@@ -17,7 +17,8 @@ gives you an exhaustive list of event types, which is :
   "object_space_dump" => 5,
   "gc_stats"          => 6,
   "event_collection"  => 7,
-  "method_call"       => 8
+  "method_call"       => 8,
+  "method_return"     => 9,
 }
 ```
 
@@ -97,7 +98,22 @@ are sent as the payload.
   payload: {
     method_name: <name of called method>,
     file: <file path where method is defined>,
-    line: <lineno where method is defined>
+    line: <lineno where method definition starts>
+  }
+}
+```
+
+### Message frame for METHOD_RETURN :
+
+```yaml
+{
+  event_type: method_return,
+  timestamp: <timestamp in milliseconds>,
+  cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
+  payload: {
+    method_name: <name of called method>,
+    file: <file path where method is defined>,
+    line: <lineno where method definition ends>
   }
 }
 ```
