@@ -134,7 +134,7 @@ static void newobj_i(VALUE tpval, void *data) {
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
     class_name = rb_class2name(klass);
 
-  rbkit_obj_created_event *event = new_rbkit_obj_created_event((void *)obj, class_name, info);
+  rbkit_obj_created_event *event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   send_message(arg->sbuf);
@@ -149,7 +149,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   // Delete allocation info of freed object
   delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
 
-  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event((void *)obj);
+  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   send_message(arg->sbuf);
@@ -363,4 +363,5 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
   rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
   rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
+  rb_define_const(objectStatsModule, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
 }
