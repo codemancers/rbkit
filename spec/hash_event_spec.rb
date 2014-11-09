@@ -7,7 +7,8 @@ describe 'send_hash_as_event' do
   let(:event_type) { Rbkit::MESSAGE_FIELDS[:event_type] }
   describe 'when event_type is known' do
     before do
-      Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false)
+      Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false,
+                            enable_execution_trace: false)
       Rbkit.send_hash_as_event(hash, Rbkit::EVENT_TYPES[:gc_stats])
       packed_message = Rbkit.get_queued_messages
       @message = MessagePack.unpack packed_message

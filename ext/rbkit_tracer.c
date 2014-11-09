@@ -275,6 +275,8 @@ static int free_values_i(st_data_t key, st_data_t value, void *data) {
 static VALUE stop_stat_server() {
   if (logger->object_trace_enabled == Qtrue)
     stop_object_trace();
+  if (logger->execution_trace_enabled == Qtrue)
+    stop_execution_trace();
 
   // Destroy the list which aggregates messages
   message_list_destroy();
