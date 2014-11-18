@@ -5,10 +5,14 @@ require "objspace"
 
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
+  DEFAULT_PUB_PORT = 5555
+  DEFAULT_REQ_PORT = 5556
+
   class Profiler
     attr_accessor :pub_port, :request_port
 
     def initialize(pub_port, request_port)
+      [pub_port, request_port].each{|port| validate_port_range(port) }
       @pub_port = pub_port
       @request_port = request_port
       @profiler_thread = nil
@@ -67,6 +71,12 @@ module Rbkit
       @stop_thread = true
       stop_server
     end
+
+    private
+
+    def validate_port_range(port)
+      raise ArgumentError, 'Invalid port value' unless (1024..65000).include?(port)
+    end
   end
 
   ########### Rbkit API ###########
@@ -77,7 +87,7 @@ module Rbkit
   # This method can be called early in a ruby application so that
   # whenever profiling needs to be done, the client can attach itself to the
   # inactive server, do the profiling and leave.
-  def self.start_server(pub_port: nil, request_port: nil)
+  def self.start_server(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT)
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server
     at_exit do
@@ -90,7 +100,7 @@ module Rbkit
   # This method can be used to profile the startup process of a ruby
   # application where sending commands from the client to enable
   # profiling is not feasible.
-  def self.start_profiling(pub_port: nil, request_port: nil,
+  def self.start_profiling(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT,
                           enable_object_trace: true, enable_gc_stats: true)
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server(enable_object_trace: enable_object_trace,
