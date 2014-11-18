@@ -3,22 +3,8 @@ Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some hist
 ## Event types
 
 EventType is an integer value indicating the type of event
-contained in the message. It's basically the following enum : 
-
-```c
-enum EventType {
-  obj_created,
-  obj_destroyed,
-  gc_start,
-  gc_end_m,
-  gc_end_s,
-  object_space_dump,
-  gc_stats,
-  event_collection
-}
-```
-
-ie, 
+contained in the message. `Rbkit::EVENT_TYPE`
+gives you an exhaustive list of event types, which is :
 
 ```ruby
 # Rbkit::EVENT_TYPES
@@ -33,6 +19,10 @@ ie,
   "event_collection"  => 7
 }
 ```
+
+The keys of all event message hashes are integer values whose enum names
+are used below. `Rbkit::MESSAGE_FIELDS` gives you the exhaustive list of
+enums used.
 
 ## Message frames
 
@@ -136,6 +126,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 ```
 
 ### Message from GC stats:
+**Note: GC stat payload uses strings for keys**
 
 ```yaml
 {
