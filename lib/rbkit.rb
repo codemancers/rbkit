@@ -71,7 +71,25 @@ module Rbkit
 
   ########### Rbkit API ###########
 
-  # Starts the server and enables memory profiling tracepoints
+  # Starts the Rbkit server and waits for a client to connect and issue
+  # commands to the request_port, until then there's zero performance overhead.
+  # Profiling data is sent asynchronously over pub_port.
+  # This method can be called early in a ruby application so that
+  # whenever profiling needs to be done, the client can attach itself to the
+  # inactive server, do the profiling and leave.
+  def self.start_server(pub_port: nil, request_port: nil)
+    @profiler = Rbkit::Profiler.new(pub_port, request_port)
+    @profiler.start_server
+    at_exit do
+      self.stop_server
+    end
+  end
+
+  # Starts the server with all tracepoints enabled by default. User can
+  # optionally disable tracepoints using the optional arguments.
+  # This method can be used to profile the startup process of a ruby
+  # application where sending commands from the client to enable
+  # profiling is not feasible.
   def self.start_profiling(pub_port: nil, request_port: nil,
                           enable_object_trace: true, enable_gc_stats: true)
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
