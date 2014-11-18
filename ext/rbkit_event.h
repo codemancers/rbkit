@@ -66,6 +66,7 @@ typedef struct _rbkit_method_call_event {
   const char *method_name;
   unsigned long line;
   const char *file;
+  unsigned long thread_id;
 } rbkit_method_call_event;
 
 rbkit_method_call_event *new_rbkit_method_call_event();

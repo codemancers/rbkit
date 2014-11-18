@@ -98,7 +98,8 @@ are sent as the payload.
   payload: {
     method_name: <name of called method>,
     file: <file path where method is defined>,
-    line: <lineno where method definition starts>
+    line: <lineno where method definition starts>,
+    thread_id: <object_id of thread where method was called>
   }
 }
 ```
@@ -113,7 +114,8 @@ are sent as the payload.
   payload: {
     method_name: <name of called method>,
     file: <file path where method is defined>,
-    line: <lineno where method definition ends>
+    line: <lineno where method definition ends>,
+    thread_id: <object_id of thread where method was returned>
   }
 }
 ```

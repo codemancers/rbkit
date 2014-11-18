@@ -13,6 +13,7 @@ describe "method_return event" do
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
   let(:cpu_time) { Rbkit::MESSAGE_FIELDS[:cpu_time] }
   let(:timestamp) { Rbkit::MESSAGE_FIELDS[:timestamp] }
+  let(:thread_id) { Rbkit::MESSAGE_FIELDS[:thread_id] }
   let(:method_call_data) do
     @message_list[payload]
       .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:method_call] &&
@@ -48,5 +49,10 @@ describe "method_return event" do
   end
   it 'should record correct method line' do
     expect(method_return_data.first[payload][line]).to eql @line + 1
+  end
+  it 'should record correct thread id' do
+    expect(method_return_data.first[payload][thread_id]).to eql Thread.current.object_id
+    expect(method_return_data.first[payload][thread_id])
+      .to eql method_call_data.first[payload][thread_id]
   end
 end

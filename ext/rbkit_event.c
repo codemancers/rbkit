@@ -83,6 +83,7 @@ rbkit_method_call_event *new_rbkit_method_call_event() {
   event->method_name = rb_id2name(mid);
   event->file = rb_sourcefile();
   event->line = rb_sourceline();
+  event->thread_id = FIX2ULONG((rb_obj_id(rb_thread_current())));
   return event;
 }
 
@@ -98,5 +99,6 @@ rbkit_method_call_event *new_rbkit_method_return_event() {
   event->method_name = rb_id2name(mid);
   event->file = rb_sourcefile();
   event->line = rb_sourceline();
+  event->thread_id = FIX2ULONG((rb_obj_id(rb_thread_current())));
   return event;
 }

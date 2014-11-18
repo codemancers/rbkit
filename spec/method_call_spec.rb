@@ -11,6 +11,7 @@ describe "method_call event" do
   let(:method_name) { Rbkit::MESSAGE_FIELDS[:method_name] }
   let(:file) { Rbkit::MESSAGE_FIELDS[:file] }
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
+  let(:thread_id) { Rbkit::MESSAGE_FIELDS[:thread_id] }
   let(:method_data) do
     @message_list[payload]
       .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:method_call] &&
@@ -38,6 +39,9 @@ describe "method_call event" do
   end
   it 'should record correct method line' do
     expect(method_data.first[payload][line]).to eql @line - 1
+  end
+  it 'should record correct thread id' do
+    expect(method_data.first[payload][thread_id]).to eql Thread.current.object_id
   end
 end
 

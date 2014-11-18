@@ -196,13 +196,15 @@ static void pack_method_call_event(rbkit_method_call_event *event, msgpack_packe
   pack_event_header(packer, event->event_header.event_type);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
-  msgpack_pack_map(packer, 3);
+  msgpack_pack_map(packer, 4);
   msgpack_pack_int(packer, rbkit_message_field_method_name);
   pack_string(packer, event->method_name);
   msgpack_pack_int(packer, rbkit_message_field_file);
   pack_string(packer, event->file);
   msgpack_pack_int(packer, rbkit_message_field_line);
   msgpack_pack_unsigned_long(packer, event->line);
+  msgpack_pack_int(packer, rbkit_message_field_thread_id);
+  msgpack_pack_unsigned_long(packer, event->thread_id);
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -261,6 +263,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
   rb_hash_aset(events, ID2SYM(rb_intern("method_name")), INT2FIX(rbkit_message_field_method_name));
   rb_hash_aset(events, ID2SYM(rb_intern("cpu_time")), INT2FIX(rbkit_message_field_cpu_time));
+  rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
   OBJ_FREEZE(events);
   return events;
 }

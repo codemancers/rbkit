@@ -16,6 +16,7 @@ typedef enum _rbkit_message_fields {
   rbkit_message_field_message_counter,
   rbkit_message_field_method_name,
   rbkit_message_field_cpu_time,
+  rbkit_message_field_thread_id,
 } rbkit_message_fields;
 
 VALUE rbkit_message_fields_as_hash();
