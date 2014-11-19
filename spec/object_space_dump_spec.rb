@@ -53,8 +53,8 @@ describe "Objectspace dump" do
       .to have_message(Rbkit::EVENT_TYPES[:object_space_dump])
   end
 
-  it 'should be split into messages of 20 objects each' do
-    message_count, left_over_objects = object_count.divmod(20)
+  it 'should be split into messages of 1000 objects each' do
+    message_count, left_over_objects = object_count.divmod(1000)
     message_count += 1 unless left_over_objects.zero?
     expect(object_dump_messages.size).to eql(message_count)
   end

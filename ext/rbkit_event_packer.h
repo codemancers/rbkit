@@ -7,7 +7,7 @@
 // messages. This macro defines the number
 // of object data that should be packed
 // as the payload of one message.
-#define MAX_OBJECT_DUMPS_IN_MESSAGE 20
+#define MAX_OBJECT_DUMPS_IN_MESSAGE 1000
 
 typedef enum _rbkit_message_fields {
   rbkit_message_field_event_type,
