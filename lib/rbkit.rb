@@ -30,7 +30,7 @@ module Rbkit
     def start_server(enable_object_trace: false, enable_gc_stats: false)
       @enable_gc_stats = enable_gc_stats
       return if @server_running
-      Rbkit.start_stat_server(pub_port, request_port)
+      return false unless Rbkit.start_stat_server(pub_port, request_port)
       Rbkit.start_stat_tracing if enable_object_trace
       @server_running = true
       @profiler_thread = Thread.new do
@@ -44,6 +44,7 @@ module Rbkit
           sleep(0.05)
         end
       end
+      true
     end
 
     def process_incoming_request(incoming_request)
@@ -88,11 +89,9 @@ module Rbkit
   # whenever profiling needs to be done, the client can attach itself to the
   # inactive server, do the profiling and leave.
   def self.start_server(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT)
+    at_exit { self.stop_server }
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server
-    at_exit do
-      self.stop_server
-    end
   end
 
   # Starts the server with all tracepoints enabled by default. User can
@@ -102,12 +101,10 @@ module Rbkit
   # profiling is not feasible.
   def self.start_profiling(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT,
                           enable_object_trace: true, enable_gc_stats: true)
+    at_exit { self.stop_server }
     @profiler = Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server(enable_object_trace: enable_object_trace,
                            enable_gc_stats: enable_gc_stats)
-    at_exit do
-      self.stop_server
-    end
   end
 
   # Stops profiling and brings down the rbkit server if it's running

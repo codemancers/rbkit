@@ -133,6 +133,21 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
 
   rb_scan_args(argc, argv, "02", &pub_port, &request_port);
 
+  char zmq_endpoint[14];
+  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
+  zmq_context = zmq_ctx_new();
+  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
+  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
+
+  char zmq_request_endpoint[14];
+  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
+  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
+
   // Creates a list which aggregates messages
   message_list_new();
   logger = get_trace_logger();
@@ -142,24 +157,9 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   rb_gc_register_mark_object(logger->freeobj_trace);
   create_gc_hooks();
 
-  char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
-
-  zmq_context = zmq_ctx_new();
-  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
-  assert(bind_result == 0);
-
-  char zmq_request_endpoint[14];
-  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
-
-  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
-  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
-  assert(bind_result == 0);
-
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
-  return Qnil;
+  return Qtrue;
 }
 
 char * tracer_string_recv(void *socket) {

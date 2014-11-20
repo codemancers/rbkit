@@ -63,7 +63,8 @@ commands to the request_port, until then there's zero performance overhead.
 Profiling data is sent asynchronously over pub_port.
 This method can be called early in a ruby application so that
 whenever profiling needs to be done, the client can attach itself to the
-inactive server, do the profiling and leave.
+inactive server, do the profiling and leave. Returns true if server was
+started successfully.
 
 
 |argument      | valid values | default value | description                                       |
@@ -78,7 +79,7 @@ Starts the server with all tracepoints enabled by default. User can
 optionally disable tracepoints using the optional arguments.
 This method can be used to profile the startup process of a ruby
 application where sending commands from the client to enable
-profiling is not feasible.
+profiling is not feasible. Returns true if server was started successfully.
 
 Arguments:
 
