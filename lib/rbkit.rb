@@ -28,13 +28,12 @@ module Rbkit
     end
 
     def start_server(enable_object_trace: false, enable_gc_stats: false)
-      @enable_gc_stats = enable_gc_stats
-      return if @server_running
-      unless Rbkit.start_stat_server(pub_port, request_port)
+      if @server_running || !Rbkit.start_stat_server(pub_port, request_port)
         Kernel.puts "Rbkit server couldn't bind to socket. Is it already running?"
         return false
       end
       Rbkit.start_stat_tracing if enable_object_trace
+      @enable_gc_stats = enable_gc_stats
       @server_running = true
       @profiler_thread = Thread.new do
         loop do
@@ -47,6 +46,7 @@ module Rbkit
           sleep(0.05)
         end
       end
+      at_exit { make_clean_exit(exiting: true) }
       true
     end
 
@@ -66,14 +66,15 @@ module Rbkit
     end
 
     def stop_server
-      return if !@server_running
       Rbkit.stop_stat_server
-      @server_running = false
     end
 
-    def make_clean_exit
+    def make_clean_exit(exiting: false)
+      return false if !@server_running
       @stop_thread = true
       stop_server
+      @server_running = false
+      true
     end
 
     private
@@ -92,8 +93,7 @@ module Rbkit
   # whenever profiling needs to be done, the client can attach itself to the
   # inactive server, do the profiling and leave.
   def self.start_server(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT)
-    at_exit { self.stop_server }
-    @profiler = Rbkit::Profiler.new(pub_port, request_port)
+    @profiler ||= Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server
   end
 
@@ -104,14 +104,19 @@ module Rbkit
   # profiling is not feasible.
   def self.start_profiling(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT,
                           enable_object_trace: true, enable_gc_stats: true)
-    at_exit { self.stop_server }
-    @profiler = Rbkit::Profiler.new(pub_port, request_port)
+    @profiler ||= Rbkit::Profiler.new(pub_port, request_port)
     @profiler.start_server(enable_object_trace: enable_object_trace,
                            enable_gc_stats: enable_gc_stats)
   end
 
   # Stops profiling and brings down the rbkit server if it's running
   def self.stop_server
-    @profiler.make_clean_exit
+    if !@profiler.nil? && @profiler.make_clean_exit
+      @profiler = nil
+      true
+    else
+      Kernel.puts "Cannot stop Rbkit server. Is it running?"
+      false
+    end
   end
 end

@@ -26,12 +26,4 @@ describe 'Rbkit.start_server' do
         .to raise_error(ArgumentError, 'Invalid port value')
     end
   end
-  describe 'when run twice' do
-    it 'should print helpful message and return false the second time' do
-      expect(Kernel).to receive(:puts).with("Rbkit server couldn't bind to socket. Is it already running?").once
-      expect(Rbkit.start_server).to be_truthy
-      expect(Rbkit.start_server).to be_falsey
-      Rbkit.stop_server
-    end
-  end
 end
