@@ -30,7 +30,10 @@ module Rbkit
     def start_server(enable_object_trace: false, enable_gc_stats: false)
       @enable_gc_stats = enable_gc_stats
       return if @server_running
-      return false unless Rbkit.start_stat_server(pub_port, request_port)
+      unless Rbkit.start_stat_server(pub_port, request_port)
+        Kernel.puts "Rbkit server couldn't bind to socket. Is it already running?"
+        return false
+      end
       Rbkit.start_stat_tracing if enable_object_trace
       @server_running = true
       @profiler_thread = Thread.new do

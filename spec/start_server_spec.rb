@@ -27,7 +27,8 @@ describe 'Rbkit.start_server' do
     end
   end
   describe 'when run twice' do
-    it 'should return false the second time' do
+    it 'should print helpful message and return false the second time' do
+      expect(Kernel).to receive(:puts).with("Rbkit server couldn't bind to socket. Is it already running?").once
       expect(Rbkit.start_server).to be_truthy
       expect(Rbkit.start_server).to be_falsey
       Rbkit.stop_server
