@@ -276,7 +276,25 @@ static int free_values_i(st_data_t key, st_data_t value, void *data) {
   return ST_CONTINUE;
 }
 
+/*
+ * Creates a msgpack array which contains all the messages packed after
+ * the last time send_messages() was called, and sends it over the PUB socket.
+ */
+static VALUE send_messages() {
+  //Get all aggregated messages as payload of a single event.
+  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  get_event_collection_message(sbuf);
+  //Send the msgpack array over zmq PUB socket
+  if(sbuf && sbuf->size > 0)
+    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  // Clear the aggregated messages
+  message_list_clear();
+  msgpack_sbuffer_free(sbuf);
+  return Qnil;
+}
+
 static VALUE stop_stat_server() {
+  send_messages();
   if (logger->object_trace_enabled == Qtrue)
     stop_object_trace();
   if (logger->execution_trace_enabled == Qtrue)
@@ -353,23 +371,6 @@ static VALUE send_objectspace_dump() {
   free(dump);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(pk);
-  return Qnil;
-}
-
-/*
- * Creates a msgpack array which contains all the messages packed after
- * the last time send_messages() was called, and sends it over the PUB socket.
- */
-static VALUE send_messages() {
-  //Get all aggregated messages as payload of a single event.
-  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
-  get_event_collection_message(sbuf);
-  //Send the msgpack array over zmq PUB socket
-  if(sbuf && sbuf->size > 0)
-    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
-  // Clear the aggregated messages
-  message_list_clear();
-  msgpack_sbuffer_free(sbuf);
   return Qnil;
 }
 
