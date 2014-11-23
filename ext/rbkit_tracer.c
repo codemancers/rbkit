@@ -127,24 +127,26 @@ static void freeobj_i(VALUE tpval, void *data) {
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
-  int default_pub_port = 5555;
-  int default_request_port = 5556;
   VALUE pub_port;
   VALUE request_port;
   int bind_result;
 
   rb_scan_args(argc, argv, "02", &pub_port, &request_port);
-  if (!NIL_P(pub_port)) {
-    default_pub_port = FIX2INT(pub_port);
-    if (default_pub_port < 1024 || default_pub_port > 65000)
-      rb_raise(rb_eArgError, "invalid port value");
-  }
 
-  if (!NIL_P(request_port)) {
-    default_request_port = FIX2INT(request_port);
-    if(default_request_port < 1024 || default_request_port > 65000)
-      rb_raise(rb_eArgError, "invalid port value");
-  }
+  char zmq_endpoint[14];
+  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
+  zmq_context = zmq_ctx_new();
+  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
+  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
+
+  char zmq_request_endpoint[14];
+  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
+  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
 
   // Creates a list which aggregates messages
   message_list_new();
@@ -155,24 +157,9 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   rb_gc_register_mark_object(logger->freeobj_trace);
   create_gc_hooks();
 
-  char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
-
-  zmq_context = zmq_ctx_new();
-  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
-  assert(bind_result == 0);
-
-  char zmq_request_endpoint[14];
-  sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
-
-  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
-  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
-  assert(bind_result == 0);
-
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
-  return Qnil;
+  return Qtrue;
 }
 
 char * tracer_string_recv(void *socket) {
