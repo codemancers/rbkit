@@ -19,7 +19,7 @@ then follow these steps :
 Add the following to the project's Gemfiles
 
 ```
-gem 'rbkit', path: <RBKIT_PATH>`
+gem 'rbkit', path: <RBKIT_PATH>
 ```
 
 
