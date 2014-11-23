@@ -69,7 +69,7 @@ started successfully.
 
 |argument      | valid values | default value | description                                       |
 |--------------|--------------|---------------|---------------------------------------------------|
-|pub_por       | nil, fixnum  | nil           | Override default message publishing port of 5555  |
+|pub_port      | nil, fixnum  | nil           | Override default message publishing port of 5555  |
 |request_port  | nil, fixnum  | nil           | Override default command listener port of 5556    |
 
 
@@ -85,7 +85,7 @@ Arguments:
 
 |argument             | valid values | default value | description                                      |
 |---------------------|--------------|---------------|--------------------------------------------------|
-|pub_por              | nil, fixnum  | nil           | Override default message publishing port of 5555 |
+|pub_port             | nil, fixnum  | nil           | Override default message publishing port of 5555 |
 |request_port         | nil, fixnum  | nil           | Override default command listener port of 5556   |
 |enable_object_trace  | true/false   | true          | Enables object creation/deletion events          |
 |enable_gc_stats      | true/false   | true          | Enables GC stats which is sent every 5 seconds   |
