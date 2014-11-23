@@ -3,7 +3,7 @@ $:<< File.join(File.dirname(__FILE__), "../ext")
 
 require 'rbkit'
 
-Rbkit.start_server
+Rbkit.start_profiling
 
 class Foo
   def initialize(name)

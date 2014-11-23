@@ -29,7 +29,8 @@ module Rbkit
 
     def start_server(enable_object_trace: false, enable_gc_stats: false)
       if @server_running || !Rbkit.start_stat_server(pub_port, request_port)
-        Kernel.puts "Rbkit server couldn't bind to socket. Is it already running?"
+        $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
+          " running. Profiling data will not be available."
         return false
       end
       Rbkit.start_stat_tracing if enable_object_trace
@@ -115,7 +116,7 @@ module Rbkit
       @profiler = nil
       true
     else
-      Kernel.puts "Cannot stop Rbkit server. Is it running?"
+      $stderr.puts "Cannot stop Rbkit server. Is it running?"
       false
     end
   end
