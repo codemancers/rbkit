@@ -36,6 +36,10 @@ ie,
 }
 ```
 
+The keys of all event message hashes are integer values whose enum names
+are used below. `Rbkit::MESSAGE_FIELDS` gives you the exhaustive list of
+enums used.
+
 ## Message frames
 
 Generic message frame is of the format :
@@ -157,6 +161,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 ```
 
 ### Message from GC stats:
+**Note: GC stat payload uses strings for keys**
 
 ```yaml
 {
