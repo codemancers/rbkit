@@ -32,6 +32,13 @@ describe 'status' do
     end
   end
 
+  describe "process_name filed" do
+    let(:process_name) { Rbkit.status[:process_name] }
+    it "should have process name" do
+      expect(process_name).to eql Process.argv0
+    end
+  end
+
   describe 'pid field' do
     let(:field) { Rbkit.status[:pid] }
     it 'should be equal to Process PID' do

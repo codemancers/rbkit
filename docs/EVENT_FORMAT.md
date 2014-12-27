@@ -82,6 +82,7 @@ is of the following format :
   event_type: "handshake",
   timestamp: <timestamp in milliseconds>,
   payload: {
+    "process_name" => <Name of the process>,
     "pwd" => <working directory of the app>,
     "pid" => <PID of the ruby process>,
     "object_trace_enabled" => <0 or 1>
