@@ -32,7 +32,7 @@ describe 'status' do
     end
   end
 
-  describe "process_name filed" do
+  describe "process_name field" do
     let(:process_name) { Rbkit.status[:process_name] }
     it "should have process name" do
       expect(process_name).to eql Process.argv0
