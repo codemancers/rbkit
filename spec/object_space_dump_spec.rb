@@ -10,6 +10,7 @@ describe "Objectspace dump" do
   let(:file) { Rbkit::MESSAGE_FIELDS[:file] }
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
   let(:size) { Rbkit::MESSAGE_FIELDS[:size] }
+  let(:age) { Rbkit::MESSAGE_FIELDS[:age] }
   let(:references) { Rbkit::MESSAGE_FIELDS[:references] }
   let(:message) do
     message = @message_list[payload]
@@ -32,6 +33,9 @@ describe "Objectspace dump" do
     Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
     @foo_obj_line = __LINE__ + 1
     @foo_obj = Foo.new
+    GC.start
+    GC.start
+    @short_lived_bar_obj = ShortLivedBar.new
     Rbkit.send_objectspace_dump
     packed_message = Rbkit.get_queued_messages
     Rbkit.stop_server
@@ -73,5 +77,10 @@ describe "Objectspace dump" do
 
   it 'should record correct size' do
     expect(array_info.first[size]).to be > 0
+  end
+
+  it 'should record correct age' do
+    expect(foo_info.first[age]).to eql 3
+    expect(short_lived_bar_info.first[age]).to eql 1
   end
 end

@@ -28,6 +28,7 @@ rbkit_object_data * initialize_object_data(rbkit_object_dump *dump) {
   data->file = NULL;
   data->line = 0;
   data->size = 0;
+  data->age = 0;
   return(data);
 }
 
@@ -35,6 +36,11 @@ static void set_size(VALUE obj, rbkit_object_data * data) {
   size_t size;
   if ((size = rb_obj_memsize_of(obj)) > 0)
     data->size = size;
+}
+
+// Refer https://github.com/ruby/ruby/blob/123eeb1c1a904923754ce65148dbef045b56e083/gc.c#L926-L930
+static int get_obj_age(VALUE flags) {
+  return (int)((flags & ((((VALUE)1)<<5) | (((VALUE)1)<<6))) >> 5);
 }
 
 static void reachable_object_i(VALUE ref, void *arg)
@@ -76,6 +82,7 @@ static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
   }
 
   set_size(obj, data);
+  data->age = get_obj_age(RBASIC(obj)->flags);
   dump->object_count++;
   dump->last->count++;
 }

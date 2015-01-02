@@ -12,6 +12,7 @@ typedef struct _rbkit_object_data {
   const char * file;
   unsigned long line;
   size_t size;
+  int age;
 } rbkit_object_data;
 
 typedef struct _rbkit_object_dump_page {

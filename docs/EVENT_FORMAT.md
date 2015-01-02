@@ -154,7 +154,8 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],
       file: <FILE_PATH>,
       line: <LINE_NUMBER>,
-      size: <SIZE>
+      size: <SIZE>,
+      age: <AGE>
     },
     ...
   ]
