@@ -3,8 +3,23 @@ Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some hist
 ## Event types
 
 EventType is an integer value indicating the type of event
-contained in the message. `Rbkit::EVENT_TYPE`
-gives you an exhaustive list of event types, which is :
+contained in the message. It's basically the following enum : 
+
+```c
+enum EventType {
+  obj_created,
+  obj_destroyed,
+  gc_start,
+  gc_end_m,
+  gc_end_s,
+  object_space_dump,
+  gc_stats,
+  event_collection,
+  handshake
+}
+```
+
+ie, 
 
 ```ruby
 # Rbkit::EVENT_TYPES
@@ -16,7 +31,8 @@ gives you an exhaustive list of event types, which is :
   "gc_end_s"          => 4,
   "object_space_dump" => 5,
   "gc_stats"          => 6,
-  "event_collection"  => 7
+  "event_collection"  => 7,
+  "handshake"         => 8
 }
 ```
 
@@ -51,6 +67,26 @@ other event messages.
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>},
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, payload: <PAYLOAD>}
   ]
+}
+```
+
+### Message frame for HANDSHAKE :
+
+Handshake is a special message which is sent synchronously over the REQ-REP
+socket pair and not on the PUB socket. When a "handshake" command is send by
+the client, the server responses with the Rbkit status. The handshake reply
+is of the following format :
+
+```yaml
+{
+  event_type: "handshake",
+  timestamp: <timestamp in milliseconds>,
+  payload: {
+    "process_name" => <Name of the process>,
+    "pwd" => <working directory of the app>,
+    "pid" => <PID of the ruby process>,
+    "object_trace_enabled" => <0 or 1>
+  }
 }
 ```
 

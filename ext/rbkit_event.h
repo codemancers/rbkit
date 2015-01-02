@@ -11,7 +11,8 @@ typedef enum _event_type {
   gc_end_s,
   object_space_dump,
   gc_stats,
-  event_collection
+  event_collection,
+  handshake
 } rbkit_event_type;
 
 VALUE rbkit_event_types_as_hash();
