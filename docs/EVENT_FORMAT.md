@@ -38,7 +38,24 @@ ie,
 
 The keys of all event message hashes are integer values whose enum names
 are used below. `Rbkit::MESSAGE_FIELDS` gives you the exhaustive list of
-enums used.
+enums used. 
+
+```ruby
+# Rbkit::MESSAGE_FIELDS
+{
+  'event_type'      =>  0,
+  'timestamp'       =>  1,
+  'payload'         =>  2,
+  'object_id'       =>  3,
+  'class_name'      =>  4,
+  'references'      =>  5,
+  'file'            =>  6,
+  'line'            =>  7,
+  'size'            =>  8,
+  'message_counter' => 9,
+  'age'             => 10
+}
+```
 
 ## Message frames
 
