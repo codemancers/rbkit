@@ -78,9 +78,4 @@ describe "Objectspace dump" do
   it 'should record correct size' do
     expect(array_info.first[size]).to be > 0
   end
-
-  it 'should record correct age' do
-    expect(foo_info.first[age]).to eql 3
-    expect(short_lived_bar_info.first[age]).to eql 1
-  end
 end

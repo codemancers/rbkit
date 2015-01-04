@@ -5,6 +5,8 @@
 #
 # See http://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 require 'rbkit'
+require 'pry'
+
 require 'support/foo_bar_sample_class'
 Rbkit.enable_test_mode
 RSpec.configure do |config|
