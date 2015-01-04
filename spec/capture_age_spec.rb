@@ -24,11 +24,13 @@ describe "Capture object age" do
       snapshot_info = ask_object_dump
       foo_obj_info = extract_obj_info(snapshot_info, "Foo")
       gen_info = foo_obj_info[age]
+      puts "Gen info is #{gen_info} and gc_count is #{GC.count}"
       expect(gen_info).to be < 3
       GC.start
       snapshot_info = ask_object_dump
       foo_obj_info = extract_obj_info(snapshot_info, "Foo")
       gen_info2 = foo_obj_info[age]
+      puts "After Gen info is #{gen_info2} and gc_count is #{GC.count}"
       expect(gen_info2).to be > gen_info
     end
 
