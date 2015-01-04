@@ -15,7 +15,7 @@ task :compile do
 end
 
 desc "Run each spec in isolated process"
-task :run_spec do
+task :run_spec => [:compile] do
   Dir["spec/*_spec.rb"].each do |file|
     puts "Running #{file}.."
     system("bundle exec rspec #{file}")
