@@ -25,6 +25,7 @@ describe "Capture object age" do
       foo_obj_info = extract_obj_info(snapshot_info, "Foo")
       gen_info = foo_obj_info[age]
       expect(gen_info).to be < 3
+      GC.start
       snapshot_info = ask_object_dump
       foo_obj_info = extract_obj_info(snapshot_info, "Foo")
       gen_info2 = foo_obj_info[age]
