@@ -8,6 +8,7 @@ rvm:
 os:
 - linux
 - osx
+script: bundle exec rake run_spec
 notifications:
   hipchat:
     rooms:
