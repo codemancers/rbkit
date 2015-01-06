@@ -52,7 +52,7 @@ enums used.
   'file'            =>  6,
   'line'            =>  7,
   'size'            =>  8,
-  'message_counter' => 9,
+  'message_counter' =>  9,
   'age'             => 10
 }
 ```
