@@ -13,14 +13,15 @@ if ENV['RBKIT_DEV']
 end
 
 def check_and_install_with_homebrew(package)
-  return false if ENV['RBKIT_NO_HOMEBREW']
-  puts green("Looks like you're on OSX. Do you want to use homebrew to install #{package}? (y/Y/n/N) :")
-  use_brew = gets.chomp
-  if(use_brew.downcase == "y")
-    system("brew install #{package}")
-  else
-    false
-  end
+  # return false if ENV['RBKIT_NO_HOMEBREW']
+  # puts green("Looks like you're on OSX. Do you want to use homebrew to install #{package}? (y/Y/n/N) :")
+  # use_brew = gets.chomp
+  # if(use_brew.downcase == "y")
+  #   system("brew install #{package}")
+  # else
+  #   false
+  # end
+  false
 end
 
 def download_file(url)
