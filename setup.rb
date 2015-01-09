@@ -22,9 +22,14 @@ class Setup
   end
 
   def copy_files
-    FileUtils.cp_r "lib/.", site_lib_dir, verbose: true
     ext_path =
       File.absolute_path "ext/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
+
+    FileUtils.rm_r site_lib_dir + "/rbkit", force: true
+    FileUtils.rm_r site_lib_dir + "/rbkit.rb", force: true
+    FileUtils.rm_r site_arch_dir + "/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}", force: true
+
+    FileUtils.cp_r "lib/.", site_lib_dir, verbose: true
     FileUtils.cp_r ext_path, site_arch_dir, verbose: true
   end
 end
