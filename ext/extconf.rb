@@ -37,7 +37,7 @@ def download_and_install_zeromq_from_source
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
       system("./configure CPPFLAGS='-fPIC' --prefix='#{dist_path}'")
-      system("make && make install")
+      system("cd src && make && make install")
     end
   end
   FileUtils.cp "#{dist_path}/lib/libzmq.a", "#{CWD}/libzmq.a"
@@ -56,7 +56,7 @@ def download_and_install_msgpack_from_source
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
       system("./configure CFLAGS='-fPIC' --prefix='#{dist_path}'")
-      system("make && make install")
+      system("cd src && make && make install")
     end
   end
 
