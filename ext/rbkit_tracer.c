@@ -248,12 +248,12 @@ static VALUE stop_stat_tracing() {
 
 
 static int free_keys_i(st_data_t key, st_data_t value, void *data) {
-  ruby_xfree((void *)key);
+  free((void *)key);
   return ST_CONTINUE;
 }
 
 static int free_values_i(st_data_t key, st_data_t value, void *data) {
-  ruby_xfree((void *)value);
+  free((void *)value);
   return ST_CONTINUE;
 }
 

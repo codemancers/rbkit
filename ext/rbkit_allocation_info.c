@@ -20,7 +20,7 @@ static const char * make_unique_str(st_table *tbl, const char *str, long len) {
       st_get_key(tbl, (st_data_t)str, (st_data_t *)&result);
     }
     else {
-      result = (char *)ruby_xmalloc(len+1);
+      result = (char *)malloc(len+1);
       strncpy(result, str, len);
       result[len] = 0;
       st_add_direct(tbl, (st_data_t)result, 1);
@@ -41,7 +41,7 @@ static void delete_unique_str(st_table *tbl, const char *str) {
     st_lookup(tbl, (st_data_t)str, &n);
     if (n == 1) {
       st_delete(tbl, (st_data_t *)&str, 0);
-      ruby_xfree((char *)str);
+      free((char *)str);
     }
     else {
       st_insert(tbl, (st_data_t)str, n-1);
@@ -68,7 +68,7 @@ rbkit_allocation_info * new_rbkit_allocation_info(rb_trace_arg_t *tparg, st_tabl
     delete_unique_str(str_table, info->class_path);
   }
   else {
-    info = (rbkit_allocation_info *)ruby_xmalloc(sizeof(rbkit_allocation_info));
+    info = (rbkit_allocation_info *)malloc(sizeof(rbkit_allocation_info));
   }
 
   info->path = path_cstr;
@@ -86,6 +86,6 @@ void delete_rbkit_allocation_info(rb_trace_arg_t *tparg, VALUE obj, st_table *st
     st_delete(object_table, (st_data_t *)&obj, (st_data_t *)&info);
     delete_unique_str(str_table, info->path);
     delete_unique_str(str_table, info->class_path);
-    ruby_xfree(info);
+    free(info);
   }
 }
