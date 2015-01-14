@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
   s.summary = %q{Ruby profiler for rest of us}
-  s.add_development_dependency("rspec")
-  s.add_development_dependency("rake")
-  s.add_development_dependency("simplecov")
+  s.add_development_dependency("rspec", "~> 3.0.0")
+  s.add_development_dependency("rake", "~> 10.3.2")
+  s.add_development_dependency("simplecov", "~> 0.9.0")
 end
