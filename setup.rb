@@ -39,10 +39,10 @@ class Setup
 end
 
 if __FILE__ == $0
-  cmd_arg = ARGV[0].strip
+  cmd_arg = ARGV[0] ? ARGV[0].strip : 'setup'
   setup_script = Setup.new
   case cmd_arg
-  when "remove"
+  when 'remove'
     setup_script.cleanup
   else
     setup_script.compile
