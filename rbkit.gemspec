@@ -16,8 +16,12 @@ Gem::Specification.new do |s|
   end
   s.required_ruby_version = '>= 2.1.0'
   s.authors = ["Hemant Kumar", "Emil Soman", "Kashyap"]
-  s.description = %q{Something small for process management}
-  s.email = %q{hemant@codemancers.com emil@codemancers.com kashyap@codemancers.com}
+  s.description = %q{
+  A Ruby profiler for the rest of us, Rbkit plugs into a Ruby process, and taps
+  realtime data to be sent over the network. We use Msgpack for achieving
+  network transport.
+  }
+  s.email = %q{hemant@codemancers.com emil@codemancers.com kashyap@codemancers.com yuva@codemancers.com}
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {spec,features}/*`.split("\n")
