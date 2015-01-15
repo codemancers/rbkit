@@ -52,7 +52,8 @@ enums used.
   'file'            =>  6,
   'line'            =>  7,
   'size'            =>  8,
-  'message_counter' =>  9
+  'message_counter' =>  9,
+  'age'             => 10
 }
 ```
 
@@ -170,7 +171,8 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],
       file: <FILE_PATH>,
       line: <LINE_NUMBER>,
-      size: <SIZE>
+      size: <SIZE>,
+      age: <AGE>
     },
     ...
   ]

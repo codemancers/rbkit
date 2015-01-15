@@ -126,7 +126,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
        * }
        */
 
-      msgpack_pack_map(packer, 6);
+      msgpack_pack_map(packer, 7);
 
       // Key1 : rbkit_message_field_object_id
       msgpack_pack_int(packer, rbkit_message_field_object_id);
@@ -175,6 +175,10 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
         msgpack_pack_nil(packer);
       else
         msgpack_pack_uint32(packer, data->size);
+
+      // Key7 : rbkit_message_field_age
+      msgpack_pack_int(packer, rbkit_message_field_age);
+      msgpack_pack_int(packer, data->age);
     }
     rbkit_object_dump_page * prev = page;
     page = page->next;
@@ -246,6 +250,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("line")), INT2FIX(rbkit_message_field_line));
   rb_hash_aset(events, ID2SYM(rb_intern("size")), INT2FIX(rbkit_message_field_size));
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
+  rb_hash_aset(events, ID2SYM(rb_intern("age")), INT2FIX(rbkit_message_field_age));
   OBJ_FREEZE(events);
   return events;
 }
