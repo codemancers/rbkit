@@ -10,10 +10,6 @@ as packed messages.
 
 ## Usage
 
-Rbkit is not ready for production yet. To use the development version of Rbkit
-in your Ruby project, follow the instructions under `Development` section and
-then follow these steps :
-
 #### Add `rbkit` to Gemfile
 
 Add the following to the project's Gemfiles
