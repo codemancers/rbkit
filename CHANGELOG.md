@@ -18,4 +18,4 @@ v0.1.6
 WIP
 ===
 
-Send version along with handshake response [#103](https://github.com/code-mancers/rbkit/pull/103)
+* Send server and protocol versions along with handshake response [#103](https://github.com/code-mancers/rbkit/pull/103)
