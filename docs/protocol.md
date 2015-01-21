@@ -1,8 +1,9 @@
-# PROTOCOL v1.0
+# Rbkit Message Protocol v1.0
 
 This is the documentation for the protocol that's used when Rbkit server
 and client communicate with each other. A client can work with a server
-as long as they both speak the same protocol version.
+as long as they both speak the same protocol version. Find out the protocol
+version used by finding the value of the constant `Rbkit::PROTOCOL_VERSION`.
 
 Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some history.
 
