@@ -249,3 +249,7 @@ VALUE rbkit_message_fields_as_hash() {
   OBJ_FREEZE(events);
   return events;
 }
+
+VALUE rbkit_protocol_version() {
+  return rb_str_new_cstr(RBKIT_PROTOCOL_VERSION);
+}

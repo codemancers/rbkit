@@ -15,4 +15,7 @@ v0.1.6
 * First final public release
 * CHANGELOG.md created
 
+WIP
+===
 
+* Send server and protocol versions along with handshake response [#103](https://github.com/code-mancers/rbkit/pull/103)

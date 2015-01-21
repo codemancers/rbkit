@@ -1,3 +1,10 @@
+# Rbkit Message Protocol v1.0
+
+This is the documentation for the protocol that's used when Rbkit server
+and client communicate with each other. A client can work with a server
+as long as they both speak the same protocol version. Find out the protocol
+version used by finding the value of the constant `Rbkit::PROTOCOL_VERSION`.
+
 Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some history.
 
 ## Event types
@@ -98,6 +105,8 @@ is of the following format :
   event_type: "handshake",
   timestamp: <timestamp in milliseconds>,
   payload: {
+    "rbkit_server_version" => <Version of Rbkit server>,
+    "rbkit_protocol_version" => <Version of message protocol used in Rbkit server>,
     "process_name" => <Name of the process>,
     "pwd" => <working directory of the app>,
     "pid" => <PID of the ruby process>,
