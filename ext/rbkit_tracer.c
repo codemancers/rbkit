@@ -187,7 +187,10 @@ static VALUE rbkit_status_as_hash() {
   VALUE status = rb_hash_new();
   VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
   VALUE processName = rb_funcall(rb_path2class("Process"), rb_intern("argv0"), 0, 0);
+  VALUE rbkitModule = rb_define_module("Rbkit");
   int object_trace_enabled = (logger && logger->enabled) ? 1 : 0;
+
+  rb_hash_aset(status, ID2SYM(rb_intern("version")), rb_const_get(rbkitModule, rb_intern("VERSION")));
   rb_hash_aset(status, ID2SYM(rb_intern("process_name")), processName);
   rb_hash_aset(status, ID2SYM(rb_intern("pwd")), rb_dir_getwd());
   rb_hash_aset(status, ID2SYM(rb_intern("pid")), pid);

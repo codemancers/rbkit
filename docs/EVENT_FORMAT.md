@@ -98,6 +98,7 @@ is of the following format :
   event_type: "handshake",
   timestamp: <timestamp in milliseconds>,
   payload: {
+    "version" => <Version of Rbkit server>,
     "process_name" => <Name of the process>,
     "pwd" => <working directory of the app>,
     "pid" => <PID of the ruby process>,
