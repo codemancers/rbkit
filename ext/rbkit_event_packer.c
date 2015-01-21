@@ -90,7 +90,7 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
   return ST_CONTINUE;
 }
 
-static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer) {
+static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
@@ -240,7 +240,10 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
       pack_object_space_dump_event((rbkit_object_space_dump_event *)event_header, packer);
       break;
     case gc_stats:
-      pack_gc_stats_event((rbkit_hash_event *)event_header, packer);
+      pack_hash_event((rbkit_hash_event *)event_header, packer);
+      break;
+    case handshake:
+      pack_hash_event((rbkit_hash_event *)event_header, packer);
       break;
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);

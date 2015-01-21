@@ -22,16 +22,30 @@ class Setup
   end
 
   def copy_files
-    FileUtils.cp_r "lib/.", site_lib_dir, verbose: true
     ext_path =
       File.absolute_path "ext/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
+
+    cleanup
+    FileUtils.cp_r "lib/.", site_lib_dir, verbose: true
     FileUtils.cp_r ext_path, site_arch_dir, verbose: true
+  end
+
+  def cleanup
+    puts "Removing existing installation"
+    FileUtils.rm_r site_lib_dir + "/rbkit", force: true
+    FileUtils.rm_r site_lib_dir + "/rbkit.rb", force: true
+    FileUtils.rm_r site_arch_dir + "/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}", force: true
   end
 end
 
 if __FILE__ == $0
-  Setup.new.tap do |setup|
-    setup.compile
-    setup.copy_files
+  cmd_arg = ARGV[0] ? ARGV[0].strip : 'setup'
+  setup_script = Setup.new
+  case cmd_arg
+  when 'remove'
+    setup_script.cleanup
+  else
+    setup_script.compile
+    setup_script.copy_files
   end
 end

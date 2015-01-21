@@ -156,24 +156,26 @@ static void freeobj_i(VALUE tpval, void *data) {
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
-  int default_pub_port = 5555;
-  int default_request_port = 5556;
   VALUE pub_port;
   VALUE request_port;
   int bind_result;
 
   rb_scan_args(argc, argv, "02", &pub_port, &request_port);
-  if (!NIL_P(pub_port)) {
-    default_pub_port = FIX2INT(pub_port);
-    if (default_pub_port < 1024 || default_pub_port > 65000)
-      rb_raise(rb_eArgError, "invalid port value");
-  }
 
-  if (!NIL_P(request_port)) {
-    default_request_port = FIX2INT(request_port);
-    if(default_request_port < 1024 || default_request_port > 65000)
-      rb_raise(rb_eArgError, "invalid port value");
-  }
+  char zmq_endpoint[14];
+  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
+  zmq_context = zmq_ctx_new();
+  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
+  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
+
+  char zmq_request_endpoint[14];
+  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
+  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
+  if(bind_result != 0)
+    return Qfalse;
 
   // Creates a list which aggregates messages
   message_list_new();
@@ -184,24 +186,9 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   rb_gc_register_mark_object(logger->freeobj_trace);
   create_gc_hooks();
 
-  char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", default_pub_port);
-
-  zmq_context = zmq_ctx_new();
-  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
-  assert(bind_result == 0);
-
-  char zmq_request_endpoint[14];
-  sprintf(zmq_request_endpoint, "tcp://*:%d", default_request_port);
-
-  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
-  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
-  assert(bind_result == 0);
-
   items[0].socket = zmq_response_socket;
   items[0].events = ZMQ_POLLIN;
-  return Qnil;
+  return Qtrue;
 }
 
 char * tracer_string_recv(void *socket) {
@@ -225,6 +212,33 @@ int tracer_string_send(void *socket, const char *message) {
    return size;
 }
 
+static VALUE rbkit_status_as_hash() {
+  VALUE status = rb_hash_new();
+  VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
+  VALUE processName = rb_funcall(rb_path2class("Process"), rb_intern("argv0"), 0, 0);
+  int object_trace_enabled = (logger && logger->enabled) ? 1 : 0;
+  rb_hash_aset(status, ID2SYM(rb_intern("process_name")), processName);
+  rb_hash_aset(status, ID2SYM(rb_intern("pwd")), rb_dir_getwd());
+  rb_hash_aset(status, ID2SYM(rb_intern("pid")), pid);
+  rb_hash_aset(status, ID2SYM(rb_intern("object_trace_enabled")), INT2FIX(object_trace_enabled));
+  return status;
+}
+
+static void send_handshake_response() {
+  msgpack_sbuffer *buffer = msgpack_sbuffer_new();
+  msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash());
+  pack_event((rbkit_event_header *)event, packer);
+  free(event);
+
+  if(buffer && buffer->size > 0)
+    zmq_send(zmq_response_socket, buffer->data, buffer->size, 0);
+
+  msgpack_sbuffer_free(buffer);
+  msgpack_packer_free(packer);
+}
+
 static VALUE poll_for_request() {
   // Wait for 100 millisecond and check if there is a message
   // we can't wait here indefenitely because ruby is not aware this is a
@@ -233,7 +247,11 @@ static VALUE poll_for_request() {
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
-    tracer_string_send(zmq_response_socket, "ok");
+    if(strcmp(message, "handshake") == 0) {
+      send_handshake_response();
+    } else {
+      tracer_string_send(zmq_response_socket, "ok");
+    }
     VALUE command_ruby_string = rb_str_new_cstr(message);
     free(message);
     return command_ruby_string;
@@ -259,12 +277,12 @@ static VALUE stop_stat_tracing() {
 
 
 static int free_keys_i(st_data_t key, st_data_t value, void *data) {
-  ruby_xfree((void *)key);
+  free((void *)key);
   return ST_CONTINUE;
 }
 
 static int free_values_i(st_data_t key, st_data_t value, void *data) {
-  ruby_xfree((void *)value);
+  free((void *)value);
   return ST_CONTINUE;
 }
 
@@ -362,6 +380,7 @@ void Init_rbkit_tracer(void) {
   rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
   rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
+  rb_define_module_function(objectStatsModule, "status", rbkit_status_as_hash, 0);
   rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
   rb_define_const(objectStatsModule, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
 }

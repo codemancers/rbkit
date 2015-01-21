@@ -12,6 +12,7 @@ VALUE rbkit_event_types_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("object_space_dump")), INT2FIX(object_space_dump));
   rb_hash_aset(events, ID2SYM(rb_intern("gc_stats")), INT2FIX(gc_stats));
   rb_hash_aset(events, ID2SYM(rb_intern("event_collection")), INT2FIX(event_collection));
+  rb_hash_aset(events, ID2SYM(rb_intern("handshake")), INT2FIX(handshake));
   OBJ_FREEZE(events);
   return events;
 }

@@ -18,3 +18,4 @@ Gemfile.lock
 /ext/zeromq*
 /ext/libmsgpack.a
 /ext/msgpack*
+/ext/TAGS
