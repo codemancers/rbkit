@@ -1,4 +1,4 @@
-# Rbkit Message Protocol v1.0
+# Rbkit Message Protocol v2.0
 
 This is the documentation for the protocol that's used when Rbkit server
 and client communicate with each other. A client can work with a server

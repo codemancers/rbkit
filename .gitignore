@@ -1,5 +1,6 @@
 /vendor/ruby/
 /ext/Makefile
+/ext/Makefile_2_2_0
 /ext/mkmf.log
 /ext/rbkit_tracer.bundle
 /ext/*.o
