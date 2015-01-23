@@ -1,5 +1,6 @@
 #ifndef RBKIT_MESSAGE_PACKER
 #define RBKIT_MESSAGE_PACKER
+#define RBKIT_PROTOCOL_VERSION "1.0"
 #include "msgpack.h"
 #include "rbkit_event.h"
 
@@ -24,6 +25,7 @@ typedef enum _rbkit_message_fields {
 } rbkit_message_fields;
 
 VALUE rbkit_message_fields_as_hash();
+VALUE rbkit_protocol_version();
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer);
 

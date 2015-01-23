@@ -45,4 +45,19 @@ describe 'status' do
       expect(field).to eql Process.pid
     end
   end
+
+  describe 'rbkit_server_version field' do
+    let(:field) { Rbkit.status[:rbkit_server_version] }
+    it 'should be equal to Rbkit version' do
+      expect(field).to eql Rbkit::VERSION
+    end
+  end
+
+  describe 'rbkit_protocol_version field' do
+    let(:field) { Rbkit.status[:rbkit_protocol_version] }
+    it 'should be equal to Rbkit version' do
+      expect(Rbkit::PROTOCOL_VERSION).to eql "1.0"
+      expect(field).to eql Rbkit::PROTOCOL_VERSION
+    end
+  end
 end
