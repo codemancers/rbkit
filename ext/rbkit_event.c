@@ -1,6 +1,6 @@
 #include "rbkit_event.h"
 
-static size_t snapshot_no = 0;
+static size_t correlation_id = 0;
 
 VALUE rbkit_event_types_as_hash() {
   VALUE events = rb_hash_new();
@@ -61,7 +61,7 @@ rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_du
   event->object_count = dump->object_count;
   event->current_page = dump->first;
   event->current_page_index = 0;
-  event->snapshot_no = ++snapshot_no;
+  event->correlation_id = ++correlation_id;
   return event;
 }
 

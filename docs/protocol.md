@@ -176,8 +176,8 @@ the following format :
   timestamp: <timestamp in milliseconds>,
   payload: [
     {
+      correlation_id: <ID_INDICATING_EVENT_THIS_MESSAGE_IS_PART_OF>,
       object_id: <OBJECT_ID>,
-      snapshot_no: <SNAPSHOT_COUNT>,
       class_name: <CLASS_NAME>,
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],
       file: <FILE_PATH>,

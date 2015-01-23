@@ -11,6 +11,7 @@ describe "Objectspace dump" do
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
   let(:size_field) { Rbkit::MESSAGE_FIELDS[:size] }
   let(:references) { Rbkit::MESSAGE_FIELDS[:references] }
+  let(:correlation_id) { Rbkit::MESSAGE_FIELDS[:correlation_id] }
   let(:object_dump_messages) do
     @message_list[payload]
       .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:object_space_dump]}
@@ -91,5 +92,11 @@ describe "Objectspace dump" do
 
   it 'should record correct size' do
     expect(array_info.first[size_field]).to be > 0
+  end
+
+  it 'should record correct correlation_id' do
+    foo_correlation_id = foo_info.first[correlation_id]
+    expect(bar_info.first[correlation_id]).to eql foo_correlation_id
+    expect(array_info.first[correlation_id]).to eql foo_correlation_id
   end
 end

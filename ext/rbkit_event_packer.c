@@ -105,10 +105,10 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
 
-  // Incrementing integer holding the snapshot no
-  // that the message belongs to
-  msgpack_pack_int(packer, rbkit_message_field_snapshot_no);
-  msgpack_pack_int(packer, event->snapshot_no);
+  // Incrementing integer holding the correlation_id
+  // indicating the event which the message belongs to
+  msgpack_pack_int(packer, rbkit_message_field_correlation_id);
+  msgpack_pack_int(packer, event->correlation_id);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
@@ -267,7 +267,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("line")), INT2FIX(rbkit_message_field_line));
   rb_hash_aset(events, ID2SYM(rb_intern("size")), INT2FIX(rbkit_message_field_size));
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
-  rb_hash_aset(events, ID2SYM(rb_intern("snapshot_no")), INT2FIX(rbkit_message_field_snapshot_no));
+  rb_hash_aset(events, ID2SYM(rb_intern("correlation_id")), INT2FIX(rbkit_message_field_correlation_id));
   OBJ_FREEZE(events);
   return events;
 }

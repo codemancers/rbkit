@@ -21,7 +21,7 @@ typedef enum _rbkit_message_fields {
   rbkit_message_field_line,
   rbkit_message_field_size,
   rbkit_message_field_message_counter,
-  rbkit_message_field_snapshot_no
+  rbkit_message_field_correlation_id
 } rbkit_message_fields;
 
 VALUE rbkit_message_fields_as_hash();
