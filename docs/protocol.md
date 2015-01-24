@@ -59,9 +59,13 @@ enums used.
   'file'            =>  6,
   'line'            =>  7,
   'size'            =>  8,
-  'message_counter' =>  9
+  'message_counter' =>  9,
+  'correlation_id'  => 10
 }
 ```
+
+`correlation_id` can be used to split a large event across several batches.
+All split events will have same `correlation_id`.
 
 ## Message frames
 
