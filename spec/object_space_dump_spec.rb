@@ -9,24 +9,35 @@ describe "Objectspace dump" do
   let(:class_name) { Rbkit::MESSAGE_FIELDS[:class_name] }
   let(:file) { Rbkit::MESSAGE_FIELDS[:file] }
   let(:line) { Rbkit::MESSAGE_FIELDS[:line] }
-  let(:size) { Rbkit::MESSAGE_FIELDS[:size] }
+  let(:size_field) { Rbkit::MESSAGE_FIELDS[:size] }
   let(:references) { Rbkit::MESSAGE_FIELDS[:references] }
-  let(:message) do
-    message = @message_list[payload]
-      .find{|x| x[event_type] == Rbkit::EVENT_TYPES[:object_space_dump]}
+  let(:correlation_id) { Rbkit::MESSAGE_FIELDS[:correlation_id] }
+  let(:object_dump_messages) do
+    @message_list[payload]
+      .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:object_space_dump]}
+  end
+  let(:object_count) do
+    object_dump_messages.inject(0){|sum, x| (sum + x[payload].size) }
   end
   let(:foo_info) do
-    message[payload].select{|x| x[class_name] == 'Foo'}
+    object_dump_messages.collect_concat do |message|
+      message[payload].select{|x| x[class_name] == 'Foo'}
+    end
   end
   let(:bar_info) do
-    message[payload].select{|x| x[class_name] == 'Bar'}
+    object_dump_messages.collect_concat do |message|
+      message[payload].select{|x| x[class_name] == 'Bar'}
+    end
   end
   let(:short_lived_bar_info) do
-    message[payload].select{|x| x[class_name] == 'ShortLivedBar'}
+    object_dump_messages.collect_concat do |message|
+      message[payload].select{|x| x[class_name] == 'ShortLivedBar'}
+    end
   end
   let(:array_info) do
-    message[payload]
-      .select{|obj| obj[object_id] == foo_info.first[references].last }
+    object_dump_messages.collect_concat do |message|
+      message[payload].select{|x| x[object_id] == foo_info.first[references].last}
+    end
   end
   before(:all) do
     Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
@@ -37,21 +48,29 @@ describe "Objectspace dump" do
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
   end
+
   it "should be part of message list" do
     expect(@message_list)
       .to have_message(Rbkit::EVENT_TYPES[:object_space_dump])
-      .with_count(1)
+  end
+
+  it 'should be split into messages of 1000 objects each' do
+    message_count, left_over_objects = object_count.divmod(1000)
+    message_count += 1 unless left_over_objects.zero?
+    expect(object_dump_messages.size).to eql(message_count)
   end
 
   it 'should record objects only once' do
     expect(foo_info.size).to eql 1
     expect(bar_info.size).to eql 1
     expect(short_lived_bar_info.size).to eql 1
+    expect(array_info.size).to eql 1
   end
 
   it 'should record correct file info' do
     expect(foo_info.first[file]).to eql __FILE__
     expect(bar_info.first[file]).to eql foo_bar_source_file
+    expect(array_info.first[file]).to eql foo_bar_source_file
   end
 
   it 'should record correct line info' do
@@ -72,6 +91,12 @@ describe "Objectspace dump" do
   end
 
   it 'should record correct size' do
-    expect(array_info.first[size]).to be > 0
+    expect(array_info.first[size_field]).to be > 0
+  end
+
+  it 'should record correct correlation_id' do
+    foo_correlation_id = foo_info.first[correlation_id]
+    expect(bar_info.first[correlation_id]).to eql foo_correlation_id
+    expect(array_info.first[correlation_id]).to eql foo_correlation_id
   end
 end

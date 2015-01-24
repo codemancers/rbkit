@@ -1,5 +1,7 @@
 #include "rbkit_event.h"
 
+static size_t correlation_id = 0;
+
 VALUE rbkit_event_types_as_hash() {
   VALUE events = rb_hash_new();
   rb_hash_aset(events, ID2SYM(rb_intern("obj_created")), INT2FIX(obj_created));
@@ -55,6 +57,11 @@ rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_du
   header->event_type = object_space_dump;
 
   event->dump = dump;
+  event->packed_objects = 0;
+  event->object_count = dump->object_count;
+  event->current_page = dump->first;
+  event->current_page_index = 0;
+  event->correlation_id = ++correlation_id;
   return event;
 }
 

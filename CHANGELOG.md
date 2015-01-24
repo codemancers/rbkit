@@ -19,3 +19,4 @@ WIP
 ===
 
 * Send server and protocol versions along with handshake response [#103](https://github.com/code-mancers/rbkit/pull/103)
+* Split object dump into smaller messages [#77](https://github.com/code-mancers/rbkit/pull/77)

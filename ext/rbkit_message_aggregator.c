@@ -37,7 +37,7 @@ void message_list_clear() {
 
 // Copies the msgpack sbuffer to the end of
 // a dynamically growing array
-void add_message(msgpack_sbuffer *buffer) {
+void queue_message(msgpack_sbuffer *buffer) {
   while(!has_enough_space_for(buffer->size))
     double_the_capacity();
   memcpy(message_array + used_memsize, buffer->data, buffer->size);
@@ -56,4 +56,10 @@ void get_event_collection_message(msgpack_sbuffer *sbuf) {
   pack_event((rbkit_event_header *)event, pk);
   free(event);
   msgpack_packer_free(pk);
+}
+
+// Returns the number of messages which are queued in the
+// current event_collection batch
+size_t queued_message_count() {
+  return no_of_messages;
 }

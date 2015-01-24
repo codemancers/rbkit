@@ -47,6 +47,11 @@ rbkit_hash_event *new_rbkit_hash_event(rbkit_event_type event_type, VALUE hash);
 typedef struct _rbkit_object_space_dump_event {
   rbkit_event_header event_header;
   rbkit_object_dump *dump;
+  size_t packed_objects;
+  size_t object_count;
+  rbkit_object_dump_page *current_page;
+  size_t current_page_index;
+  size_t correlation_id;
 } rbkit_object_space_dump_event;
 
 rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump);

@@ -28,6 +28,7 @@ static void *zmq_publisher;
 static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
+static int test_mode_enabled = 0;
 
 static rbkit_logger * get_trace_logger() {
   int i = 0;
@@ -46,6 +47,34 @@ static rbkit_logger * get_trace_logger() {
   return logger;
 }
 
+/*
+ * Creates a msgpack array which contains all the messages packed after
+ * the last time send_messages() was called, and sends it over the PUB socket.
+ */
+static VALUE send_messages() {
+  if(test_mode_enabled)
+    return Qnil; //NOOP
+
+  //Get all aggregated messages as payload of a single event.
+  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  get_event_collection_message(sbuf);
+  //Send the msgpack array over zmq PUB socket
+  if(sbuf && sbuf->size > 0)
+    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  // Clear the aggregated messages
+  message_list_clear();
+  msgpack_sbuffer_free(sbuf);
+  return Qnil;
+}
+
+// Adds the message to the queue and sends the queued messages if
+// the queue becomes full.
+static void send_message(msgpack_sbuffer *buffer) {
+  queue_message(buffer);
+  if(queued_message_count() == MESSAGE_BATCH_SIZE)
+    send_messages();
+}
+
 static void
 gc_start_i(VALUE tpval, void *data)
 {
@@ -54,7 +83,7 @@ gc_start_i(VALUE tpval, void *data)
   event->event_type = gc_start;
   pack_event(event, arg->msgpacker);
   free(event);
-  add_message(arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -65,7 +94,7 @@ gc_end_mark_i(VALUE tpval, void *data)
   event->event_type = gc_end_m;
   pack_event(event, arg->msgpacker);
   free(event);
-  add_message(arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -76,7 +105,7 @@ gc_end_sweep_i(VALUE tpval, void *data)
   event->event_type = gc_end_s;
   pack_event(event, arg->msgpacker);
   free(event);
-  add_message(arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -108,7 +137,7 @@ static void newobj_i(VALUE tpval, void *data) {
   rbkit_obj_created_event *event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  add_message(arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
@@ -123,7 +152,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  add_message(arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -296,7 +325,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
-  add_message(buffer);
+  send_message(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
   return Qnil;
@@ -321,34 +350,25 @@ static VALUE send_objectspace_dump() {
 
   rbkit_object_dump * dump = get_object_dump(logger->object_table);
   rbkit_object_space_dump_event *event = new_rbkit_object_space_dump_event(dump);
-  pack_event((rbkit_event_header *)event, pk);
-  free(event);
-  add_message(buffer);
 
+  // Object space dump can span across messages.
+  // So we keep creating and queueing the messages
+  // until we've packed all objects.
+  while(event->packed_objects < event->object_count) {
+    pack_event((rbkit_event_header *)event, pk);
+    send_message(buffer);
+  }
+
+  free(event->current_page);
+  free(event);
   free(dump);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(pk);
   return Qnil;
 }
 
-/*
- * Creates a msgpack array which contains all the messages packed after
- * the last time send_messages() was called, and sends it over the PUB socket.
- */
-static VALUE send_messages() {
-  //Get all aggregated messages as payload of a single event.
-  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
-  get_event_collection_message(sbuf);
-  //Send the msgpack array over zmq PUB socket
-  if(sbuf && sbuf->size > 0)
-    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
-  // Clear the aggregated messages
-  message_list_clear();
-  msgpack_sbuffer_free(sbuf);
-  return Qnil;
-}
-
 static VALUE enable_test_mode() {
+  test_mode_enabled = 1;
   Init_rbkit_test_helper();
   return Qnil;
 }

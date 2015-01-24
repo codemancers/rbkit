@@ -1,4 +1,4 @@
-# Rbkit Message Protocol v1.0
+# Rbkit Message Protocol v2.0
 
 This is the documentation for the protocol that's used when Rbkit server
 and client communicate with each other. A client can work with a server
@@ -167,14 +167,17 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 
 ### Message frame for OBJECT_SPACE_DUMP :
 
+Object space dump is split into multiple messages. Each message is of
+the following format :
+
 ```yaml
 {
   event_type: object_space_dump
   timestamp: <timestamp in milliseconds>,
   payload: [
     {
+      correlation_id: <ID_INDICATING_EVENT_THIS_MESSAGE_IS_PART_OF>,
       object_id: <OBJECT_ID>,
-      snapshot_no: <SNAPSHOT_COUNT>,
       class_name: <CLASS_NAME>,
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],
       file: <FILE_PATH>,
