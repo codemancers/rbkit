@@ -64,8 +64,8 @@ enums used.
 }
 ```
 
-`correlation-id` can be used to split a large event across several batches.
-All split events will have same `correlation-id`.
+`correlation_id` can be used to split a large event across several batches.
+All split events will have same `correlation_id`.
 
 ## Message frames
 
