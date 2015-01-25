@@ -10,6 +10,17 @@ as packed messages.
 
 ## Usage
 
+#### Install prerequisites
+
+Rbkit requires the following executables to be present :
+
+* libtool
+* autoconf
+* automake
+
+Install these with your operating system's package manager before proceeding
+to install Rbkit gem.
+
 #### Add `rbkit` to Gemfile
 
 Add the following to the project's Gemfiles
