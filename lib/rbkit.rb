@@ -1,3 +1,4 @@
+require "rbkit/version"
 require "rbkit_tracer"
 require "rbkit/timer"
 require "rbkit/rbkit_gc"
