@@ -178,9 +178,9 @@ the following format :
 {
   event_type: object_space_dump
   timestamp: <timestamp in milliseconds>,
+  correlation_id: <ID_INDICATING_EVENT_THIS_MESSAGE_IS_PART_OF>,
   payload: [
     {
-      correlation_id: <ID_INDICATING_EVENT_THIS_MESSAGE_IS_PART_OF>,
       object_id: <OBJECT_ID>,
       class_name: <CLASS_NAME>,
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],

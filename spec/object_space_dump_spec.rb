@@ -58,6 +58,8 @@ describe "Objectspace dump" do
     message_count, left_over_objects = object_count.divmod(1000)
     message_count += 1 unless left_over_objects.zero?
     expect(object_dump_messages.size).to eql(message_count)
+    expect(object_dump_messages.first[correlation_id]).to eql 1
+    expect(object_dump_messages.last[correlation_id]).to eql 1
   end
 
   it 'should record objects only once' do
@@ -92,11 +94,5 @@ describe "Objectspace dump" do
 
   it 'should record correct size' do
     expect(array_info.first[size_field]).to be > 0
-  end
-
-  it 'should record correct correlation_id' do
-    foo_correlation_id = foo_info.first[correlation_id]
-    expect(bar_info.first[correlation_id]).to eql foo_correlation_id
-    expect(array_info.first[correlation_id]).to eql foo_correlation_id
   end
 end
