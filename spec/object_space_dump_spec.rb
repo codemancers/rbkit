@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'support/have_message_matcher'
 require 'msgpack'
+require 'pry'
 
 describe "Objectspace dump" do
   let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }
@@ -12,6 +13,8 @@ describe "Objectspace dump" do
   let(:size_field) { Rbkit::MESSAGE_FIELDS[:size] }
   let(:references) { Rbkit::MESSAGE_FIELDS[:references] }
   let(:correlation_id) { Rbkit::MESSAGE_FIELDS[:correlation_id] }
+  let(:complete_message_count) { Rbkit::MESSAGE_FIELDS[:complete_message_count] }
+
   let(:object_dump_messages) do
     @message_list[payload]
       .select{|x| x[event_type] == Rbkit::EVENT_TYPES[:object_space_dump]}
@@ -47,6 +50,12 @@ describe "Objectspace dump" do
     packed_message = Rbkit.get_queued_messages
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
+  end
+
+  it "should have count of all messages" do
+    total_message_count = object_dump_messages.first[complete_message_count]
+    expect(total_message_count).to_not be_nil
+    expect(total_message_count).to be > 0
   end
 
   it "should be part of message list" do

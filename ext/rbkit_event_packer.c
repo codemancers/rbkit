@@ -102,13 +102,17 @@ static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
   rbkit_object_dump *dump = event->dump;
-  msgpack_pack_map(packer, 4);
+  msgpack_pack_map(packer, 5);
   pack_event_header(packer, event->event_header.event_type);
 
   // Incrementing integer holding the correlation_id
   // indicating the event which the message belongs to
   msgpack_pack_int(packer, rbkit_message_field_correlation_id);
   msgpack_pack_int(packer, event->correlation_id);
+  
+  // dump total number of messages in batch
+  msgpack_pack_int(packer, rbkit_message_field_complete_message_count);
+  msgpack_pack_int(packer, event->object_count);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
@@ -268,6 +272,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("size")), INT2FIX(rbkit_message_field_size));
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
   rb_hash_aset(events, ID2SYM(rb_intern("correlation_id")), INT2FIX(rbkit_message_field_correlation_id));
+  rb_hash_aset(events, ID2SYM(rb_intern("complete_message_count")), INT2FIX(rbkit_message_field_complete_message_count));
   OBJ_FREEZE(events);
   return events;
 }
