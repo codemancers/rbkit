@@ -50,17 +50,18 @@ enums used.
 ```ruby
 # Rbkit::MESSAGE_FIELDS
 {
-  'event_type'      =>  0,
-  'timestamp'       =>  1,
-  'payload'         =>  2,
-  'object_id'       =>  3,
-  'class_name'      =>  4,
-  'references'      =>  5,
-  'file'            =>  6,
-  'line'            =>  7,
-  'size'            =>  8,
-  'message_counter' =>  9,
-  'correlation_id'  => 10
+  'event_type'             =>  0,
+  'timestamp'              =>  1,
+  'payload'                =>  2,
+  'object_id'              =>  3,
+  'class_name'             =>  4,
+  'references'             =>  5,
+  'file'                   =>  6,
+  'line'                   =>  7,
+  'size'                   =>  8,
+  'message_counter'        =>  9,
+  'correlation_id'         => 10,
+  'complete_message_count' => 11
 }
 ```
 
