@@ -22,9 +22,9 @@ enum EventType {
   object_space_dump,
   gc_stats,
   event_collection,
+  handshake,
   method_call,
-  method_return,
-  handshake
+  method_return
 }
 ```
 
@@ -41,9 +41,9 @@ ie,
   "object_space_dump" => 5,
   "gc_stats"          => 6,
   "event_collection"  => 7,
-  "method_call"       => 8,
-  "method_return"     => 9,
-  "handshake"         => 10
+  "handshake"         => 8,
+  "method_call"       => 9,
+  "method_return"     => 10,
 }
 ```
 
@@ -54,18 +54,21 @@ enums used.
 ```ruby
 # Rbkit::MESSAGE_FIELDS
 {
-  'event_type'             =>  0,
-  'timestamp'              =>  1,
-  'payload'                =>  2,
-  'object_id'              =>  3,
-  'class_name'             =>  4,
-  'references'             =>  5,
-  'file'                   =>  6,
-  'line'                   =>  7,
-  'size'                   =>  8,
-  'message_counter'        =>  9,
-  'correlation_id'         => 10,
-  'complete_message_count' => 11
+  :event_type             => 0,
+  :timestamp              => 1,
+  :payload                => 2,
+  :object_id              => 3,
+  :class_name             => 4,
+  :references             => 5,
+  :file                   => 6,
+  :line                   => 7,
+  :size                   => 8,
+  :message_counter        => 9,
+  :correlation_id         => 10,
+  :complete_message_count => 11,
+  :method_name            => 12,
+  :cpu_time               => 13,
+  :thread_id              => 14
 }
 ```
 
