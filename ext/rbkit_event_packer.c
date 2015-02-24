@@ -85,7 +85,7 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
   return ST_CONTINUE;
 }
 
-static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer) {
+static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 4);
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
@@ -97,83 +97,108 @@ static void pack_gc_stats_event(rbkit_hash_event *event, msgpack_packer *packer)
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
   rbkit_object_dump *dump = event->dump;
-  msgpack_pack_map(packer, 4);
+  msgpack_pack_map(packer, 6);
   pack_event_header(packer, event->event_header.event_type);
+
+  // Incrementing integer holding the correlation_id
+  // indicating the event which the message belongs to
+  msgpack_pack_int(packer, rbkit_message_field_correlation_id);
+  msgpack_pack_int(packer, event->correlation_id);
+  
+  // dump total number of messages in batch
+  msgpack_pack_int(packer, rbkit_message_field_complete_message_count);
+  msgpack_pack_int(packer, event->object_count);
+
   msgpack_pack_int(packer, rbkit_message_field_payload);
+
+  // Find the batch size
+  size_t objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
+  int objects_left = event->object_count - event->packed_objects;
+  if(objects_left < MAX_OBJECT_DUMPS_IN_MESSAGE)
+    objects_in_batch = objects_left;
+
   // Set size of array to hold all objects
-  msgpack_pack_array(packer, dump->object_count);
+  msgpack_pack_array(packer, objects_in_batch);
 
   // Iterate through all object data
-  rbkit_object_dump_page * page = dump->first ;
-  while(page != NULL) {
-    rbkit_object_data *data;
-    size_t i = 0;
-    for(;i < page->count; i++) {
-      data = &(page->data[i]);
-      /* Object dump is a map that looks like this :
-       * {
-       *   object_id: <OBJECT_ID_IN_HEX>,
-       *   class: <CLASS_NAME>,
-       *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
-       *   file: <FILE_PATH>,
-       *   line: <LINE_NO>,
-       *   size: <SIZE>
-       * }
-       */
-
-      msgpack_pack_map(packer, 6);
-
-      // Key1 : rbkit_message_field_object_id
-      msgpack_pack_int(packer, rbkit_message_field_object_id);
-
-      // Value1 : pointer address of object
-      msgpack_pack_unsigned_long_long(packer, data->object_id);
-
-      // Key2 : rbkit_message_field_class_name
-      msgpack_pack_int(packer, rbkit_message_field_class_name);
-
-      // Value2 : Class name of object
-      pack_string(packer, data->class_name);
-
-      // Key3 : rbkit_message_field_references
-      msgpack_pack_int(packer, rbkit_message_field_references);
-
-      // Value3 : References held by the object
-      msgpack_pack_array(packer, data->reference_count);
-      if(data->reference_count != 0) {
-        size_t count = 0;
-        for(; count < data->reference_count; count++ )
-          msgpack_pack_unsigned_long_long(packer, data->references[count]);
-        free(data->references);
-      }
-
-      // Key4 : rbkit_message_field_file
-      msgpack_pack_int(packer, rbkit_message_field_file);
-
-      // Value4 : File path where object is defined
-      pack_string(packer, data->file);
-
-      // Key5 : rbkit_message_field_line
-      msgpack_pack_int(packer, rbkit_message_field_line);
-
-      // Value5 : Line no where object is defined
-      if(data->line == 0)
-        msgpack_pack_nil(packer);
-      else
-        msgpack_pack_unsigned_long(packer, data->line);
-
-      // Key6 : rbkit_message_field_size
-      msgpack_pack_int(packer, rbkit_message_field_size);
-
-      // Value6 : Size of the object in memory
-      if(data->size == 0)
-        msgpack_pack_nil(packer);
-      else
-        msgpack_pack_uint32(packer, data->size);
+  int count = 0;
+  int i = 0;
+  rbkit_object_data *data;
+  rbkit_object_dump_page * page;
+  while(count < objects_in_batch) {
+    if(event->current_page_index == RBKIT_OBJECT_DUMP_PAGE_SIZE) {
+      event->current_page_index = 0;
+      rbkit_object_dump_page * prev = event->current_page;
+      event->current_page = event->current_page->next;
+      free(prev);
     }
-    rbkit_object_dump_page * prev = page;
-    page = page->next;
-    free(prev);
+    page = event->current_page;
+    i = event->current_page_index;
+    data = &(page->data[i]);
+    /* Object dump is a map that looks like this :
+     * {
+     *   object_id: <OBJECT_ID_IN_HEX>,
+     *   class: <CLASS_NAME>,
+     *   references: [<OBJECT_ID_IN_HEX>, <OBJECT_ID_IN_HEX>, ...],
+     *   file: <FILE_PATH>,
+     *   line: <LINE_NO>,
+     *   size: <SIZE>
+     * }
+     */
+
+    msgpack_pack_map(packer, 6);
+
+    // Key1 : rbkit_message_field_object_id
+    msgpack_pack_int(packer, rbkit_message_field_object_id);
+
+    // Value1 : pointer address of object
+    msgpack_pack_unsigned_long_long(packer, data->object_id);
+
+    // Key2 : rbkit_message_field_class_name
+    msgpack_pack_int(packer, rbkit_message_field_class_name);
+
+    // Value2 : Class name of object
+    pack_string(packer, data->class_name);
+
+    // Key3 : rbkit_message_field_references
+    msgpack_pack_int(packer, rbkit_message_field_references);
+
+    // Value3 : References held by the object
+    msgpack_pack_array(packer, data->reference_count);
+    if(data->reference_count != 0) {
+      size_t count = 0;
+      for(; count < data->reference_count; count++ )
+        msgpack_pack_unsigned_long_long(packer, data->references[count]);
+      free(data->references);
+    }
+
+    // Key4 : rbkit_message_field_file
+    msgpack_pack_int(packer, rbkit_message_field_file);
+
+    // Value4 : File path where object is defined
+    pack_string(packer, data->file);
+
+    // Key5 : rbkit_message_field_line
+    msgpack_pack_int(packer, rbkit_message_field_line);
+
+    // Value5 : Line no where object is defined
+    if(data->line == 0)
+      msgpack_pack_nil(packer);
+    else
+      msgpack_pack_unsigned_long(packer, data->line);
+
+    // Key6 : rbkit_message_field_size
+    msgpack_pack_int(packer, rbkit_message_field_size);
+
+    // Value6 : Size of the object in memory
+    if(data->size == 0)
+      msgpack_pack_nil(packer);
+    else
+      msgpack_pack_uint32(packer, data->size);
+
+    event->current_page_index++;
+    event->packed_objects++;
+    count++;
   }
 }
 
@@ -231,7 +256,10 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
       pack_object_space_dump_event((rbkit_object_space_dump_event *)event_header, packer);
       break;
     case gc_stats:
-      pack_gc_stats_event((rbkit_hash_event *)event_header, packer);
+      pack_hash_event((rbkit_hash_event *)event_header, packer);
+      break;
+    case handshake:
+      pack_hash_event((rbkit_hash_event *)event_header, packer);
       break;
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
@@ -264,6 +292,12 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("method_name")), INT2FIX(rbkit_message_field_method_name));
   rb_hash_aset(events, ID2SYM(rb_intern("cpu_time")), INT2FIX(rbkit_message_field_cpu_time));
   rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
+  rb_hash_aset(events, ID2SYM(rb_intern("correlation_id")), INT2FIX(rbkit_message_field_correlation_id));
+  rb_hash_aset(events, ID2SYM(rb_intern("complete_message_count")), INT2FIX(rbkit_message_field_complete_message_count));
   OBJ_FREEZE(events);
   return events;
+}
+
+VALUE rbkit_protocol_version() {
+  return rb_str_new_cstr(RBKIT_PROTOCOL_VERSION);
 }

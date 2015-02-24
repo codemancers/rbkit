@@ -17,17 +17,6 @@ if RUBY_PLATFORM =~ /linux/
   $LDFLAGS += " -lrt" # for clock_gettime
 end
 
-def check_and_install_with_homebrew(package)
-  return false if ENV['RBKIT_NO_HOMEBREW']
-  puts green("Looks like you're on OSX. Do you want to use homebrew to install #{package}? (y/Y/n/N) :")
-  use_brew = gets.chomp
-  if(use_brew.downcase == "y")
-    system("brew install #{package}")
-  else
-    false
-  end
-end
-
 def download_file(url)
   if find_executable('curl')
     system("curl -L -O #{url}")
@@ -53,7 +42,7 @@ def download_and_install_zeromq_from_source
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
       system("./configure CPPFLAGS='-fPIC' --prefix='#{dist_path}'")
-      system("make && make install")
+      system("cd src && make && make install")
     end
   end
   FileUtils.cp "#{dist_path}/lib/libzmq.a", "#{CWD}/libzmq.a"
@@ -72,7 +61,7 @@ def download_and_install_msgpack_from_source
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
       system("./configure CFLAGS='-fPIC' --prefix='#{dist_path}'")
-      system("make && make install")
+      system("cd src && make && make install")
     end
   end
 
@@ -92,10 +81,6 @@ end
 unless(have_library("zmq") && have_header("zmq.h"))
   if Gem.win_platform?
     puts red("On Windows? You'll have to install zeromq by yourself.")
-  elsif RUBY_PLATFORM =~ /darwin/
-    unless check_and_install_with_homebrew("zeromq")
-      download_and_install_zeromq_from_source
-    end
   else
     download_and_install_zeromq_from_source
   end
@@ -109,10 +94,6 @@ end
 unless(have_library("msgpack") && have_header("msgpack.h"))
   if Gem.win_platform?
     puts red("On Windows? You'll have to install msgpack by yourself.")
-  elsif RUBY_PLATFORM =~ /darwin/
-    unless check_and_install_with_homebrew("msgpack")
-      download_and_install_msgpack_from_source
-    end
   else
     download_and_install_msgpack_from_source
   end

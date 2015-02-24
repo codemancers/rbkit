@@ -1,10 +1,34 @@
+# Rbkit Message Protocol v2.0
+
+This is the documentation for the protocol that's used when Rbkit server
+and client communicate with each other. A client can work with a server
+as long as they both speak the same protocol version. Find out the protocol
+version used by finding the value of the constant `Rbkit::PROTOCOL_VERSION`.
+
 Refer [issue #11](https://github.com/code-mancers/rbkit/issues/11) for some history.
 
 ## Event types
 
 EventType is an integer value indicating the type of event
-contained in the message. `Rbkit::EVENT_TYPE`
-gives you an exhaustive list of event types, which is :
+contained in the message. It's basically the following enum :
+
+```c
+enum EventType {
+  obj_created,
+  obj_destroyed,
+  gc_start,
+  gc_end_m,
+  gc_end_s,
+  object_space_dump,
+  gc_stats,
+  event_collection,
+  method_call,
+  method_return,
+  handshake
+}
+```
+
+ie,
 
 ```ruby
 # Rbkit::EVENT_TYPES
@@ -19,12 +43,34 @@ gives you an exhaustive list of event types, which is :
   "event_collection"  => 7,
   "method_call"       => 8,
   "method_return"     => 9,
+  "handshake"         => 10
 }
 ```
 
 The keys of all event message hashes are integer values whose enum names
 are used below. `Rbkit::MESSAGE_FIELDS` gives you the exhaustive list of
-enums used.
+enums used. 
+
+```ruby
+# Rbkit::MESSAGE_FIELDS
+{
+  'event_type'             =>  0,
+  'timestamp'              =>  1,
+  'payload'                =>  2,
+  'object_id'              =>  3,
+  'class_name'             =>  4,
+  'references'             =>  5,
+  'file'                   =>  6,
+  'line'                   =>  7,
+  'size'                   =>  8,
+  'message_counter'        =>  9,
+  'correlation_id'         => 10,
+  'complete_message_count' => 11
+}
+```
+
+`correlation_id` can be used to split a large event across several batches.
+All split events will have same `correlation_id`.
 
 ## Message frames
 
@@ -55,6 +101,28 @@ other event messages.
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, cpu_time: <CPU_TIME>, payload: <PAYLOAD>},
     {event_type: <EVENT_TYPE>, timestamp: <TIMESTAMP>, cpu_time: <CPU_TIME>, payload: <PAYLOAD>}
   ]
+}
+```
+
+### Message frame for HANDSHAKE :
+
+Handshake is a special message which is sent synchronously over the REQ-REP
+socket pair and not on the PUB socket. When a "handshake" command is send by
+the client, the server responses with the Rbkit status. The handshake reply
+is of the following format :
+
+```yaml
+{
+  event_type: "handshake",
+  timestamp: <timestamp in milliseconds>,
+  payload: {
+    "rbkit_server_version" => <Version of Rbkit server>,
+    "rbkit_protocol_version" => <Version of message protocol used in Rbkit server>,
+    "process_name" => <Name of the process>,
+    "pwd" => <working directory of the app>,
+    "pid" => <PID of the ruby process>,
+    "object_trace_enabled" => <0 or 1>
+  }
 }
 ```
 
@@ -146,15 +214,18 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 
 ### Message frame for OBJECT_SPACE_DUMP :
 
+Object space dump is split into multiple messages. Each message is of
+the following format :
+
 ```yaml
 {
   event_type: object_space_dump
   timestamp: <timestamp in milliseconds>,
   cpu_time: <cpu time in milliseconds since some arbitrary point in time>,
+  correlation_id: <ID_INDICATING_EVENT_THIS_MESSAGE_IS_PART_OF>,
   payload: [
     {
       object_id: <OBJECT_ID>,
-      snapshot_no: <SNAPSHOT_COUNT>,
       class_name: <CLASS_NAME>,
       references: [<OBJECT_ID>, <OBJECT_ID>, ... ],
       file: <FILE_PATH>,
@@ -167,6 +238,7 @@ When the GC_END_SWEEP event is triggered, no payload is sent.
 ```
 
 ### Message from GC stats:
+**Note: GC stat payload uses strings for keys**
 
 ```yaml
 {

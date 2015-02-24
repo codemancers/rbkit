@@ -16,8 +16,12 @@ Gem::Specification.new do |s|
   end
   s.required_ruby_version = '>= 2.1.0'
   s.authors = ["Hemant Kumar", "Emil Soman", "Kashyap"]
-  s.description = %q{Something small for process management}
-  s.email = %q{hemant@codemancers.com emil@codemancers.com kashyap@codemancers.com}
+  s.description = %q{
+  A Ruby profiler for the rest of us, Rbkit plugs into a Ruby process, and taps
+  realtime data to be sent over the network. We use Msgpack for achieving
+  network transport.
+  }
+  s.email = %q{hemant@codemancers.com emil@codemancers.com kashyap@codemancers.com yuva@codemancers.com}
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {spec,features}/*`.split("\n")
@@ -28,7 +32,7 @@ Gem::Specification.new do |s|
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
   s.summary = %q{Ruby profiler for rest of us}
-  s.add_development_dependency("rspec")
-  s.add_development_dependency("rake")
-  s.add_development_dependency("simplecov")
+  s.add_development_dependency("rspec", "~> 3.0.0")
+  s.add_development_dependency("rake", "~> 10.3.2")
+  s.add_development_dependency("simplecov", "~> 0.9.0")
 end

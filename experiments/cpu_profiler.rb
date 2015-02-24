@@ -11,8 +11,7 @@ commands = [
   'start_cpu_profile',
   'stop_cpu_profile',
   'objectspace_snapshot',
-  'trigger_gc',
-  'handshake'
+  'trigger_gc'
 ]
 
 output_file = File.open("/tmp/rbkit.log", "w")
@@ -36,7 +35,6 @@ Thread.new do
       request_socket.send(command)
       puts "sent #{command}"
       response = request_socket.recv()
-      response = MessagePack.unpack(response) unless response == "ok"
       puts "received #{response}"
     end
   end
