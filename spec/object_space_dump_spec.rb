@@ -42,11 +42,11 @@ describe "Objectspace dump" do
     end
   end
   before(:all) do
-    Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
     @foo_obj_line = __LINE__ + 1
     @foo_obj = Foo.new
-    Rbkit.send_objectspace_dump
-    packed_message = Rbkit.get_queued_messages
+    server.send_objectspace_dump
+    packed_message = server.get_queued_messages
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
   end

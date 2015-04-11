@@ -23,9 +23,9 @@ describe "obj_created event" do
         x[payload][class_name] =='ShortLivedBar' }
   end
   before(:all) do
-    Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
     @foo_obj = Foo.new
-    packed_message = Rbkit.get_queued_messages
+    packed_message = server.get_queued_messages
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
   end

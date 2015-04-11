@@ -374,18 +374,20 @@ static VALUE enable_test_mode() {
 }
 
 void Init_rbkit_server(void) {
-  VALUE objectStatsModule = rb_define_module("Rbkit");
-  rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
-  rb_define_module_function(objectStatsModule, "stop_stat_server", stop_stat_server, 0);
-  rb_define_module_function(objectStatsModule, "start_stat_tracing", start_stat_tracing, 0);
-  rb_define_module_function(objectStatsModule, "stop_stat_tracing", stop_stat_tracing, 0);
-  rb_define_module_function(objectStatsModule, "poll_for_request", poll_for_request, 0);
-  rb_define_module_function(objectStatsModule, "send_objectspace_dump", send_objectspace_dump, 0);
-  rb_define_module_function(objectStatsModule, "send_hash_as_event", send_hash_as_event, -1);
-  rb_define_module_function(objectStatsModule, "send_messages", send_messages, 0);
-  rb_define_module_function(objectStatsModule, "enable_test_mode", enable_test_mode, 0);
-  rb_define_module_function(objectStatsModule, "status", rbkit_status_as_hash, 0);
-  rb_define_const(objectStatsModule, "EVENT_TYPES", rbkit_event_types_as_hash());
-  rb_define_const(objectStatsModule, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
-  rb_define_const(objectStatsModule, "PROTOCOL_VERSION", rbkit_protocol_version());
+  VALUE rbkit_module = rb_define_module("Rbkit");
+  rb_define_const(rbkit_module, "EVENT_TYPES", rbkit_event_types_as_hash());
+  rb_define_const(rbkit_module, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
+  rb_define_const(rbkit_module, "PROTOCOL_VERSION", rbkit_protocol_version());
+  rb_define_module_function(rbkit_module, "enable_test_mode", enable_test_mode, 0);
+
+  VALUE rbkit_server = rb_define_class_under(rbkit_module, "Server", rb_cObject);
+  rb_define_method(rbkit_server, "start_stat_server", start_stat_server, -1);
+  rb_define_method(rbkit_server, "stop_stat_server", stop_stat_server, 0);
+  rb_define_method(rbkit_server, "start_stat_tracing", start_stat_tracing, 0);
+  rb_define_method(rbkit_server, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_method(rbkit_server, "poll_for_request", poll_for_request, 0);
+  rb_define_method(rbkit_server, "send_objectspace_dump", send_objectspace_dump, 0);
+  rb_define_method(rbkit_server, "send_hash_as_event", send_hash_as_event, -1);
+  rb_define_method(rbkit_server, "send_messages", send_messages, 0);
+  rb_define_method(rbkit_server, "status", rbkit_status_as_hash, 0);
 }

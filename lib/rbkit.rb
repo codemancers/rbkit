@@ -38,7 +38,7 @@ module Rbkit
 
   # Stops profiling and brings down the rbkit server if it's running
   def self.stop_server
-    if !@server.nil? && @server.make_clean_exit
+    if !@server.nil? && @server.stop
       @server = nil
       true
     else

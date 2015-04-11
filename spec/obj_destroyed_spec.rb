@@ -21,10 +21,10 @@ describe "obj_destroyed event" do
         x[payload][object_id] == short_lived_bar_object_id}
   end
   before(:all) do
-    Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
     @foo_obj = Foo.new
     GC.start
-    packed_message = Rbkit.get_queued_messages
+    packed_message = server.get_queued_messages
     Rbkit.stop_server
     @message_list  = MessagePack.unpack packed_message
   end
