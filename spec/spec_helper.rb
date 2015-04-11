@@ -1,5 +1,3 @@
-require 'coveralls'
-Coveralls.wear!
 require 'rbkit'
 require 'support/foo_bar_sample_class'
 Rbkit.enable_test_mode
