@@ -98,4 +98,4 @@ unless(have_library("msgpack") && have_header("msgpack.h"))
   end
 end
 
-create_makefile('rbkit_tracer')
+create_makefile('rbkit_server')

@@ -1,5 +1,5 @@
 require "rbkit/version"
-require "rbkit_tracer"
+require "rbkit_server"
 require "rbkit/timer"
 require "rbkit/rbkit_gc"
 require "rbkit/server"

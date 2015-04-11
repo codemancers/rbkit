@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 Codemancers. All rights reserved.
 //
 
-#include "rbkit_tracer.h"
+#include "rbkit_server.h"
 #include "rbkit_allocation_info.h"
 #include "rbkit_event.h"
 #include "rbkit_event_packer.h"
@@ -373,7 +373,7 @@ static VALUE enable_test_mode() {
   return Qnil;
 }
 
-void Init_rbkit_tracer(void) {
+void Init_rbkit_server(void) {
   VALUE objectStatsModule = rb_define_module("Rbkit");
   rb_define_module_function(objectStatsModule, "start_stat_server", start_stat_server, -1);
   rb_define_module_function(objectStatsModule, "stop_stat_server", stop_stat_server, 0);

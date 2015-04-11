@@ -2,9 +2,9 @@
 /ext/Makefile
 /ext/Makefile_2_2_0
 /ext/mkmf.log
-/ext/rbkit_tracer.bundle
+/ext/rbkit_server.bundle
 /ext/*.o
-/lib/rbkit_tracer.bundle
+/lib/rbkit_server.bundle
 /tmp
 Gemfile.lock
 *.so

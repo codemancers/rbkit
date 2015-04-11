@@ -4,8 +4,8 @@ require "rspec/core/rake_task"
 RSpec::Core::RakeTask.new
 
 task :compile do
-  symlink_bundle_path = File.absolute_path "lib/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
-  original_bundle_path = File.absolute_path "ext/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
+  symlink_bundle_path = File.absolute_path "lib/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
+  original_bundle_path = File.absolute_path "ext/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
   Dir.chdir 'ext' do
     system("#{Gem.ruby} extconf.rb")
     system("make")
