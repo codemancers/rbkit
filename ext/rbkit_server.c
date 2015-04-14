@@ -12,6 +12,7 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
+#include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
 #include <sys/time.h>
 
@@ -35,6 +36,7 @@ static rbkit_logger * get_trace_logger() {
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
     logger->enabled = Qfalse;
+    logger->sampling_profiler_enabled = Qfalse;
     logger->newobj_trace = 0;
     logger->freeobj_trace = 0;
     logger->object_table = st_init_numtable();
@@ -279,6 +281,22 @@ static VALUE stop_stat_tracing() {
   return Qnil;
 }
 
+static VALUE start_sampling_profiler() {
+  if (logger->sampling_profiler_enabled == Qtrue)
+    return Qnil;
+  rbkit_install_sampling_profiler();
+  logger->sampling_profiler_enabled = Qtrue;
+  return Qnil;
+}
+
+static VALUE stop_sampling_profiler() {
+  if (logger->sampling_profiler_enabled == Qfalse)
+    return Qnil;
+  rbkit_uninstall_sampling_profiler();
+  logger->sampling_profiler_enabled = Qfalse;
+  return Qnil;
+}
+
 
 static int free_keys_i(st_data_t key, st_data_t value, void *data) {
   free((void *)key);
@@ -385,6 +403,8 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "stop_stat_server", stop_stat_server, 0);
   rb_define_method(rbkit_server, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_method(rbkit_server, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_method(rbkit_server, "start_sampling_profiler", start_sampling_profiler, 0);
+  rb_define_method(rbkit_server, "stop_sampling_profiler", stop_sampling_profiler, 0);
   rb_define_method(rbkit_server, "poll_for_request", poll_for_request, 0);
   rb_define_method(rbkit_server, "send_objectspace_dump", send_objectspace_dump, 0);
   rb_define_method(rbkit_server, "send_hash_as_event", send_hash_as_event, -1);
