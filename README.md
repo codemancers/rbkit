@@ -151,8 +151,8 @@ bundle exec rake compile
 cd <RBKIT_PATH/ext>
 ruby extconf.rb
 make
-# Create a symlink at `lib/rbkit_tracer.bundle` (or .so if on linux)
-# that points to `ext/rbkit_tracer.bundle`
+# Create a symlink at `lib/rbkit_server.bundle` (or .so if on linux)
+# that points to `ext/rbkit_server.bundle`
 # (in order to use `rbkit` gem in Gemfiles using `path` option)
 ```
 

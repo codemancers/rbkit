@@ -15,5 +15,6 @@ static VALUE get_queued_messages() {
 
 void Init_rbkit_test_helper(void) {
   VALUE rbkit_module = rb_define_module("Rbkit");
-  rb_define_module_function(rbkit_module, "get_queued_messages", get_queued_messages, 0);
+  VALUE rbkit_server = rb_define_class_under(rbkit_module, "Server", rb_cObject);
+  rb_define_method(rbkit_server, "get_queued_messages", get_queued_messages, 0);
 }

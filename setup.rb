@@ -23,7 +23,7 @@ class Setup
 
   def copy_files
     ext_path =
-      File.absolute_path "ext/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
+      File.absolute_path "ext/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
 
     cleanup
     FileUtils.cp_r "lib/.", site_lib_dir, verbose: true
@@ -34,7 +34,7 @@ class Setup
     puts "Removing existing installation"
     FileUtils.rm_r site_lib_dir + "/rbkit", force: true
     FileUtils.rm_r site_lib_dir + "/rbkit.rb", force: true
-    FileUtils.rm_r site_arch_dir + "/rbkit_tracer.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}", force: true
+    FileUtils.rm_r site_arch_dir + "/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}", force: true
   end
 end
 

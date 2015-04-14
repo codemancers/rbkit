@@ -1,6 +1,6 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-gem "msgpack"
+gem 'msgpack'
 
 group :exclude_in_travis do
   gem 'pry-byebug'
