@@ -281,10 +281,12 @@ static VALUE stop_stat_tracing() {
   return Qnil;
 }
 
-static VALUE start_sampling_profiler() {
+static VALUE start_sampling_profiler(VALUE self, VALUE clock_type) {
   if (logger->sampling_profiler_enabled == Qtrue)
     return Qnil;
-  rbkit_install_sampling_profiler();
+  if(!SYMBOL_P(clock_type))
+    rb_raise(rb_eArgError, "clock_type should be a symbol, either :wall or :cpu");
+  rbkit_install_sampling_profiler(clock_type == ID2SYM(rb_intern("wall")));
   logger->sampling_profiler_enabled = Qtrue;
   return Qnil;
 }
@@ -403,7 +405,7 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "stop_stat_server", stop_stat_server, 0);
   rb_define_method(rbkit_server, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_method(rbkit_server, "stop_stat_tracing", stop_stat_tracing, 0);
-  rb_define_method(rbkit_server, "start_sampling_profiler", start_sampling_profiler, 0);
+  rb_define_method(rbkit_server, "start_sampling_profiler", start_sampling_profiler, 1);
   rb_define_method(rbkit_server, "stop_sampling_profiler", stop_sampling_profiler, 0);
   rb_define_method(rbkit_server, "poll_for_request", poll_for_request, 0);
   rb_define_method(rbkit_server, "send_objectspace_dump", send_objectspace_dump, 0);

@@ -65,6 +65,23 @@ module Rbkit
       true
     end
 
+    def start_cpu_profiling(mode: :sampling, clock_type: :cpu)
+      @cpu_profiling_mode = mode
+      if mode == :sampling
+        start_sampling_profiler(clock_type)
+      else
+        # TODO
+      end
+    end
+
+    def stop_cpu_profiling
+      if @cpu_profiling_mode == :sampling
+        stop_sampling_profiler
+      else
+        # TODO
+      end
+    end
+
     private
 
     def validate_port_range(port)

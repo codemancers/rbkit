@@ -3,6 +3,6 @@
 #include <signal.h>
 #include <sys/time.h>
 
-void rbkit_install_sampling_profiler();
+void rbkit_install_sampling_profiler(int wall_time);
 void rbkit_uninstall_sampling_profiler();
 #endif

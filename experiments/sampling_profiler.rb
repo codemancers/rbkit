@@ -22,7 +22,7 @@ def main
 end
 
 server = Rbkit.start_server
-server.start_sampling_profiler
+server.start_cpu_profiling(mode: :sampling, clock_type: :wall)
 main
-server.stop_sampling_profiler
+server.stop_cpu_profiling
 Rbkit.stop_server
