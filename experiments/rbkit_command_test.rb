@@ -20,10 +20,12 @@ ctx = ZMQ::Context.new
 puts "Enter IPv4 address of Rbkit server. (Blank for localhost) :"
 server_ip = gets.strip
 server_ip = "127.0.0.1" if server_ip.empty?
+pub_port = (ENV['RBKIT_PUB_PORT'] || 5555).to_i
+req_port = (ENV['RBKIT_REQ_PORT'] || 5556).to_i
 
 Thread.new do
   request_socket = ctx.socket(:REQ)
-  request_socket.connect("tcp://#{server_ip}:5556")
+  request_socket.connect("tcp://#{server_ip}:#{req_port}")
   loop do
     puts "Available commands :"
     commands.each_with_index do |c, i|
@@ -42,7 +44,7 @@ end
 
 socket = ctx.socket(:SUB)
 socket.subscribe("")
-socket.connect("tcp://#{server_ip}:5555")
+socket.connect("tcp://#{server_ip}:#{pub_port}")
 
 begin
   loop do

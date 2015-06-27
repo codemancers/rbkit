@@ -3,9 +3,9 @@ module Rbkit
     attr_accessor :pub_port, :request_port
 
     def initialize(pub_port, request_port)
-      [pub_port, request_port].each{|port| validate_port_range(port) }
-      @pub_port = pub_port
-      @request_port = request_port
+      @pub_port = pub_port.to_i
+      @request_port = request_port.to_i
+      [@pub_port, @request_port].each{|port| validate_port_range(port) }
       @profiler_thread = nil
       @profiler_stop_thread = false
       @server_running = false

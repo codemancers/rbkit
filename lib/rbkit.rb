@@ -7,8 +7,8 @@ require "rbkit/server"
 
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
-  DEFAULT_PUB_PORT = 5555
-  DEFAULT_REQ_PORT = 5556
+  DEFAULT_PUB_PORT = ENV['RBKIT_PUB_PORT'] || 5555
+  DEFAULT_REQ_PORT = ENV['RBKIT_REQ_PORT'] || 5556
 
 
   ########### Rbkit API ###########
