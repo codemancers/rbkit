@@ -164,16 +164,16 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
 
   rb_scan_args(argc, argv, "02", &pub_port, &request_port);
 
-  char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
+  char zmq_endpoint[21];
+  sprintf(zmq_endpoint, "tcp://127.0.0.1:%d", FIX2INT(pub_port));
   zmq_context = zmq_ctx_new();
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
   bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
   if(bind_result != 0)
     return Qfalse;
 
-  char zmq_request_endpoint[14];
-  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
+  char zmq_request_endpoint[21];
+  sprintf(zmq_request_endpoint, "tcp://127.0.0.1:%d", FIX2INT(request_port));
   zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
   bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
   if(bind_result != 0)
