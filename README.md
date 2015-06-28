@@ -120,6 +120,11 @@ On Linux - we recommend to download these libraries
 from their respective home pages and manually compiling
 and installing.
 
+Recommended versions are:
+
+Zeromq: 4.0.5_2
+Msgpack: 0.5.9
+
 #### Clone the repo
 
 `git clone git@github.com:code-mancers/rbkit.git`
