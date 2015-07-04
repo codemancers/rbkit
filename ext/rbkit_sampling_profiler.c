@@ -14,8 +14,10 @@ static void sampling_job_handler(void *data_unused) {
   int start = 0;
   int buff_size = 100;
   int lines[256];
-  VALUE buff[256];
-  int i;
+  VALUE buff[256], rb_method_name, rb_label, rb_file, rb_singleton_method;
+  int i, is_singleton;
+  char *method_name, *label, *file;
+  unsigned long line, thread_id;
 
   rbkit_cpu_sample *sample = malloc(sizeof(rbkit_cpu_sample));
 
@@ -25,26 +27,26 @@ static void sampling_job_handler(void *data_unused) {
   sample->frame_count = collected_size;
   for (i=0; i<collected_size; i++) {
 
-    VALUE rb_method_name = rb_profile_frame_method_name(buff[i]);
-    char *method_name = StringValueCStr(rb_method_name);
+    rb_method_name = rb_profile_frame_method_name(buff[i]);
+    method_name = StringValueCStr(rb_method_name);
     frame_data[i].method_name = method_name;
 
-    VALUE rb_label = rb_profile_frame_full_label(buff[i]);
-    char *label = StringValueCStr(rb_label);
+    rb_label = rb_profile_frame_full_label(buff[i]);
+    label = StringValueCStr(rb_label);
     frame_data[i].label = label;
 
-    VALUE rb_file = rb_profile_frame_absolute_path(buff[i]);
-    char *file = StringValueCStr(rb_file);
+    rb_file = rb_profile_frame_absolute_path(buff[i]);
+    file = StringValueCStr(rb_file);
     frame_data[i].file = file;
 
-    unsigned long line = FIX2ULONG(rb_profile_frame_first_lineno(buff[i]));
+    line = FIX2ULONG(rb_profile_frame_first_lineno(buff[i]));
     frame_data[i].line = line;
 
-    VALUE rb_singleton_method = rb_profile_frame_singleton_method_p(buff[i]);
-    int is_singleton = rb_singleton_method == Qtrue;
+    rb_singleton_method = rb_profile_frame_singleton_method_p(buff[i]);
+    is_singleton = rb_singleton_method == Qtrue;
     frame_data[i].is_singleton_method = is_singleton;
 
-    unsigned long thread_id = FIX2ULONG(rb_obj_id(rb_thread_current()));
+    thread_id = FIX2ULONG(rb_obj_id(rb_thread_current()));
     frame_data[i].thread_id = thread_id;
   }
   queue_cpu_sample_for_sending(sample);

@@ -14,11 +14,12 @@ static void pack_string(msgpack_packer *packer, const char *string) {
 }
 
 static void pack_timestamp(msgpack_packer *packer) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
+  double time_in_milliseconds;
+  struct timeval tv;
 
-    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
-    msgpack_pack_double(packer, time_in_milliseconds);
+  gettimeofday(&tv, NULL);
+  time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
+  msgpack_pack_double(packer, time_in_milliseconds);
 }
 
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
@@ -65,6 +66,8 @@ static void pack_event_header_only(rbkit_event_header *event_header, msgpack_pac
 }
 
 static void pack_value_object(msgpack_packer *packer, VALUE value) {
+  VALUE rubyString;
+  char *keyString;
   switch (TYPE(value)) {
     case T_FIXNUM:
       msgpack_pack_long(packer, FIX2LONG(value));
@@ -74,8 +77,8 @@ static void pack_value_object(msgpack_packer *packer, VALUE value) {
       break;
     default:
       ;
-      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
-      char *keyString = StringValueCStr(rubyString);
+      rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
+      keyString = StringValueCStr(rubyString);
       pack_string(packer, keyString);
       break;
   }
@@ -92,16 +95,26 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
 }
 
 static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
+  VALUE hash;
+  int size;
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
-  VALUE hash = event->hash;
-  int size = (int)RHASH_SIZE(hash);
+  hash = event->hash;
+  size = (int)RHASH_SIZE(hash);
   msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, size);
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
+  size_t objects_in_batch;
+  size_t objects_left;
+  size_t count = 0;
+  size_t i = 0;
+  rbkit_object_dump_page *prev;
+  rbkit_object_data *data;
+  rbkit_object_dump_page * page;
+
   msgpack_pack_map(packer, 5);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -117,8 +130,8 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
   // Find the batch size
-  size_t objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
-  size_t objects_left = event->object_count - event->packed_objects;
+  objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
+  objects_left = event->object_count - event->packed_objects;
   if(objects_left < MAX_OBJECT_DUMPS_IN_MESSAGE)
     objects_in_batch = objects_left;
 
@@ -126,14 +139,10 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   msgpack_pack_array(packer, objects_in_batch);
 
   // Iterate through all object data
-  size_t count = 0;
-  size_t i = 0;
-  rbkit_object_data *data;
-  rbkit_object_dump_page * page;
   while(count < objects_in_batch) {
     if(event->current_page_index == RBKIT_OBJECT_DUMP_PAGE_SIZE) {
       event->current_page_index = 0;
-      rbkit_object_dump_page * prev = event->current_page;
+      prev = event->current_page;
       event->current_page = event->current_page->next;
       free(prev);
     }
@@ -208,8 +217,10 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
 }
 
 static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer *packer) {
+  rbkit_cpu_sample *sample;
+
   msgpack_pack_map(packer, 3);
-  rbkit_cpu_sample *sample = event->sample;
+  sample = event->sample;
 
   // Keys 1 & 2 - event type and timestamp
   pack_event_header(packer, event->event_header.event_type);

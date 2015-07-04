@@ -1,6 +1,7 @@
 #ifndef RBKIT_SAMPLING_PROFILER
 #define RBKIT_SAMPLING_PROFILER
 #include <sys/time.h>
+#include <stddef.h>
 
 typedef struct _rbkit_frame_data {
   const char * method_name;
