@@ -10,7 +10,11 @@ commands = [
   'stop_memory_profile',
   'objectspace_snapshot',
   'trigger_gc',
-  'handshake'
+  'handshake',
+  'use_cpu_time',
+  'use_wall_time',
+  'start_cpu_profiling',
+  'stop_cpu_profiling'
 ]
 
 output_file = File.open("/tmp/rbkit.log", "w")

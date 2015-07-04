@@ -1,5 +1,6 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
+#include "rbkit_sampling_profiler.h"
 #include <sys/time.h>
 
 static void pack_string(msgpack_packer *packer, const char *string) {
@@ -207,6 +208,51 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   }
 }
 
+static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer *packer) {
+  msgpack_sbuffer *sbuf = packer->data;
+  msgpack_pack_map(packer, 3);
+  rbkit_cpu_sample *sample = event->sample;
+
+  // Keys 1 & 2 - event type and timestamp
+  pack_event_header(packer, event->event_header.event_type);
+
+  // Key 3 : Payload
+  msgpack_pack_int(packer, rbkit_message_field_payload);
+  // Value 3: Array of samples
+  msgpack_pack_array(packer, sample->frame_count);
+
+  if(sample->frame_count != 0) {
+    size_t count = 0;
+    for(; count < sample->frame_count; count++ ){
+      msgpack_pack_map(packer, 6);
+
+      // method_name
+      msgpack_pack_int(packer, rbkit_message_field_method_name);
+      pack_string(packer, sample->frames[count].method_name);
+
+      // label
+      msgpack_pack_int(packer, rbkit_message_field_label);
+      pack_string(packer, sample->frames[count].label);
+
+      // file
+      msgpack_pack_int(packer, rbkit_message_field_file);
+      pack_string(packer, sample->frames[count].file);
+
+      // line
+      msgpack_pack_int(packer, rbkit_message_field_line);
+      msgpack_pack_unsigned_long(packer, sample->frames[count].line);
+
+      // singleton_method
+      msgpack_pack_int(packer, rbkit_message_field_singleton_method);
+      msgpack_pack_int(packer, sample->frames[count].is_singleton_method);
+
+      // thread_od
+      msgpack_pack_int(packer, rbkit_message_field_thread_id);
+      msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);
+    }
+  }
+}
+
 static void pack_event_collection_event(rbkit_event_collection_event *event, msgpack_packer *packer) {
   msgpack_sbuffer *sbuf = packer->data;
   msgpack_pack_map(packer, 4);
@@ -249,6 +295,9 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
     case handshake:
       pack_hash_event((rbkit_hash_event *)event_header, packer);
       break;
+    case cpu_sample:
+      pack_cpu_sample_event((rbkit_cpu_sample_event *)event_header, packer);
+      break;
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
       break;
@@ -273,6 +322,10 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
   rb_hash_aset(events, ID2SYM(rb_intern("correlation_id")), INT2FIX(rbkit_message_field_correlation_id));
   rb_hash_aset(events, ID2SYM(rb_intern("complete_message_count")), INT2FIX(rbkit_message_field_complete_message_count));
+  rb_hash_aset(events, ID2SYM(rb_intern("method_name")), INT2FIX(rbkit_message_field_method_name));
+  rb_hash_aset(events, ID2SYM(rb_intern("label")), INT2FIX(rbkit_message_field_label));
+  rb_hash_aset(events, ID2SYM(rb_intern("singleton_method")), INT2FIX(rbkit_message_field_singleton_method));
+  rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
   OBJ_FREEZE(events);
   return events;
 }

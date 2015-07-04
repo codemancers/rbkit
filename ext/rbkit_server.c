@@ -32,7 +32,6 @@ static zmq_pollitem_t items[1];
 static int test_mode_enabled = 0;
 
 static rbkit_logger * get_trace_logger() {
-  int i = 0;
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
     logger->enabled = Qfalse;
@@ -281,12 +280,26 @@ static VALUE stop_stat_tracing() {
   return Qnil;
 }
 
+static void queue_cpu_sample_for_sending(rbkit_cpu_sample *sample) {
+  msgpack_sbuffer* buffer = msgpack_sbuffer_new();
+  msgpack_packer* packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  rbkit_cpu_sample_event *event = new_rbkit_cpu_sample_event(sample);
+
+  pack_event((rbkit_event_header *)event, packer);
+  free(event);
+
+  send_message(buffer);
+  msgpack_sbuffer_free(buffer);
+  msgpack_packer_free(packer);
+}
+
 static VALUE start_sampling_profiler(VALUE self, VALUE clock_type) {
   if (logger->sampling_profiler_enabled == Qtrue)
     return Qnil;
   if(!SYMBOL_P(clock_type))
     rb_raise(rb_eArgError, "clock_type should be a symbol, either :wall or :cpu");
-  rbkit_install_sampling_profiler(clock_type == ID2SYM(rb_intern("wall")));
+  rbkit_install_sampling_profiler(clock_type == ID2SYM(rb_intern("wall")), queue_cpu_sample_for_sending);
   logger->sampling_profiler_enabled = Qtrue;
   return Qnil;
 }

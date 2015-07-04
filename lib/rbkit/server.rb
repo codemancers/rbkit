@@ -9,6 +9,7 @@ module Rbkit
       @profiler_thread = nil
       @profiler_stop_thread = false
       @server_running = false
+      @clock_type = :cpu
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
         send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
@@ -54,6 +55,14 @@ module Rbkit
         GC.start
       when "objectspace_snapshot"
         send_objectspace_dump
+      when "use_cpu_time"
+        @clock_type = :cpu
+      when "use_wall_time"
+        @clock_type = :wall
+      when "start_cpu_profiling"
+        start_cpu_profiling(clock_type: @clock_type)
+      when "stop_cpu_profiling"
+        stop_cpu_profiling
       end
     end
 

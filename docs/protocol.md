@@ -22,7 +22,8 @@ enum EventType {
   object_space_dump,
   gc_stats,
   event_collection,
-  handshake
+  handshake,
+  cpu_sample,
 }
 ```
 
@@ -39,7 +40,8 @@ ie,
   "object_space_dump" => 5,
   "gc_stats"          => 6,
   "event_collection"  => 7,
-  "handshake"         => 8
+  "handshake"         => 8,
+  "cpu_sample"       => 9
 }
 ```
 
@@ -61,7 +63,11 @@ enums used.
   'size'                   =>  8,
   'message_counter'        =>  9,
   'correlation_id'         => 10,
-  'complete_message_count' => 11
+  'complete_message_count' => 11,
+  'method_name'            => 12,
+  'label'                  => 13,
+  'singleton_method'       => 14,
+  'thread_id'              => 15
 }
 ```
 
@@ -192,6 +198,39 @@ the following format :
     ...
   ]
 }
+```
+
+### Message frame for CPU_SAMPLE :
+
+CPU Samples are split into multiple messages. Each message is of
+the following format :
+
+```yaml
+{
+  event_type: cpu_sample
+  timestamp: <timestamp in milliseconds>,
+  payload: [
+    {
+      method_name: <name of method >,
+      label: <method label (See below for details)>,
+      file: <filename>,
+      line: <line no>,
+      singleton_method: <1/0>,
+      thread_id: <thread id>
+    }, #Frame 1
+    ...
+  ] # Array of frames in the sample
+}
+```
+
+Ruby VM gives us something called a "full label" which will give us many details
+about each frame in the call stack. Some examples:
+
+```ruby
+"block (2 levels) in SampleClass#foobar" # foobar is an instance method of SampleClass. The frame is 2 blocks deep inside foobar.
+"#{obj.inspect}.zab" # Frame is in zab, a singleton method defined on an object obj
+"SampleClass#baz" # Frame is in baz, an instance method defined in SampleClass
+"SampleClass.bar" # Frame is in bar, a class method defined in SampleClass
 ```
 
 ### Message from GC stats:

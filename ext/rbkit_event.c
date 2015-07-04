@@ -13,6 +13,7 @@ VALUE rbkit_event_types_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("gc_stats")), INT2FIX(gc_stats));
   rb_hash_aset(events, ID2SYM(rb_intern("event_collection")), INT2FIX(event_collection));
   rb_hash_aset(events, ID2SYM(rb_intern("handshake")), INT2FIX(handshake));
+  rb_hash_aset(events, ID2SYM(rb_intern("cpu_sample")), INT2FIX(cpu_sample));
   OBJ_FREEZE(events);
   return events;
 }
@@ -62,6 +63,14 @@ rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_du
   event->current_page = dump->first;
   event->current_page_index = 0;
   event->correlation_id = ++correlation_id;
+  return event;
+}
+
+rbkit_cpu_sample_event *new_rbkit_cpu_sample_event(rbkit_cpu_sample *sample) {
+  rbkit_cpu_sample_event *event = malloc(sizeof(rbkit_cpu_sample_event));
+  rbkit_event_header *header = (rbkit_event_header *)event;
+  header->event_type = cpu_sample;
+  event->sample = sample;
   return event;
 }
 
