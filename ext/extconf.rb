@@ -12,6 +12,8 @@ if ENV['RBKIT_DEV']
   $defs << '-DRBKIT_DEV' # Set macro named RBKIT_DEV
 end
 
+$CFLAGS << " -std=gnu99"
+
 def download_file(url)
   if find_executable('curl')
     system("curl -L -O #{url}")
