@@ -7,7 +7,7 @@ static void pack_string(msgpack_packer *packer, const char *string) {
   if(string == NULL) {
     msgpack_pack_nil(packer);
   } else {
-    int length = strlen(string);
+    int length = (int)strlen(string);
     msgpack_pack_raw(packer, length);
     msgpack_pack_raw_body(packer, string, length);
   }
@@ -95,14 +95,13 @@ static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
   VALUE hash = event->hash;
-  int size = RHASH_SIZE(hash);
+  int size = (int)RHASH_SIZE(hash);
   msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, size);
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
-  rbkit_object_dump *dump = event->dump;
   msgpack_pack_map(packer, 5);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -113,13 +112,13 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   
   // dump total number of messages in batch
   msgpack_pack_int(packer, rbkit_message_field_complete_message_count);
-  msgpack_pack_int(packer, event->object_count);
+  msgpack_pack_unsigned_long(packer, event->object_count);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
   // Find the batch size
   size_t objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
-  int objects_left = event->object_count - event->packed_objects;
+  size_t objects_left = event->object_count - event->packed_objects;
   if(objects_left < MAX_OBJECT_DUMPS_IN_MESSAGE)
     objects_in_batch = objects_left;
 
@@ -127,8 +126,8 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   msgpack_pack_array(packer, objects_in_batch);
 
   // Iterate through all object data
-  int count = 0;
-  int i = 0;
+  size_t count = 0;
+  size_t i = 0;
   rbkit_object_data *data;
   rbkit_object_dump_page * page;
   while(count < objects_in_batch) {
@@ -200,7 +199,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
     if(data->size == 0)
       msgpack_pack_nil(packer);
     else
-      msgpack_pack_uint32(packer, data->size);
+      msgpack_pack_unsigned_long(packer, data->size);
 
     event->current_page_index++;
     event->packed_objects++;
@@ -209,7 +208,6 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
 }
 
 static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer *packer) {
-  msgpack_sbuffer *sbuf = packer->data;
   msgpack_pack_map(packer, 3);
   rbkit_cpu_sample *sample = event->sample;
 

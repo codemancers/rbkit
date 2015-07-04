@@ -1,6 +1,6 @@
 #include "rbkit_event.h"
 
-static size_t correlation_id = 0;
+static int correlation_id = 0;
 
 VALUE rbkit_event_types_as_hash() {
   VALUE events = rb_hash_new();

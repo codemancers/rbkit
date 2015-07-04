@@ -16,14 +16,6 @@
 #include "rbkit_test_helper.h"
 #include <sys/time.h>
 
-static const char *event_names[] = {
-  "gc_start",
-  "gc_end_m",
-  "gc_end_s",
-  "obj_created",
-  "obj_destroyed"
-};
-
 static rbkit_logger *logger;
 static void *zmq_publisher;
 static void *zmq_context;

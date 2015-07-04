@@ -53,7 +53,7 @@ typedef struct _rbkit_object_space_dump_event {
   size_t object_count;
   rbkit_object_dump_page *current_page;
   size_t current_page_index;
-  size_t correlation_id;
+  int correlation_id;
 } rbkit_object_space_dump_event;
 
 rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump);

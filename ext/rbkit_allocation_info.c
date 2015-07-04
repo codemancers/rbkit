@@ -51,7 +51,6 @@ static void delete_unique_str(st_table *tbl, const char *str) {
 
 rbkit_allocation_info * new_rbkit_allocation_info(rb_trace_arg_t *tparg, st_table *str_table, st_table *object_table) {
   VALUE obj = rb_tracearg_object(tparg);
-  VALUE klass = RBASIC_CLASS(obj);
   VALUE path = rb_tracearg_path(tparg);
   VALUE line = rb_tracearg_lineno(tparg);
   VALUE method_id = rb_tracearg_method_id(tparg);

@@ -8,7 +8,6 @@
 
 static int signal_type;
 static int clock_type;
-typedef void (*queue_sample_func_ptr) (rbkit_cpu_sample *);
 queue_sample_func_ptr queue_cpu_sample_for_sending;
 
 static void sampling_job_handler(void *data_unused) {

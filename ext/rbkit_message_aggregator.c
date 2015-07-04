@@ -40,7 +40,7 @@ void message_list_clear() {
 void queue_message(msgpack_sbuffer *buffer) {
   while(!has_enough_space_for(buffer->size))
     double_the_capacity();
-  memcpy(message_array + used_memsize, buffer->data, buffer->size);
+  memcpy((char *)message_array + used_memsize, buffer->data, buffer->size);
   used_memsize += buffer->size;
   no_of_messages += 1;
 }
