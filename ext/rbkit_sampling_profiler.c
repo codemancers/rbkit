@@ -12,23 +12,25 @@ queue_sample_func_ptr queue_cpu_sample_for_sending;
 
 static void sampling_job_handler(void *data_unused) {
   int start = 0;
-  int buff_size = 100;
-  int lines[256];
-  VALUE buff[256], rb_method_name, rb_label, rb_file, rb_singleton_method;
+  int lines[2048];
+  VALUE buff[2048], rb_method_name, rb_label, rb_file, rb_singleton_method;
   int i, is_singleton;
   char *method_name, *label, *file;
   unsigned long line, thread_id;
 
   rbkit_cpu_sample *sample = malloc(sizeof(rbkit_cpu_sample));
 
-  int collected_size = rb_profile_frames(start, buff_size, buff, lines);
+  int collected_size = rb_profile_frames(start, sizeof(buff) / sizeof(VALUE), buff, lines);
   rbkit_frame_data *frame_data = malloc(sizeof(rbkit_frame_data) * collected_size);
   sample->frames = frame_data;
   sample->frame_count = collected_size;
   for (i=0; i<collected_size; i++) {
-
     rb_method_name = rb_profile_frame_method_name(buff[i]);
-    method_name = StringValueCStr(rb_method_name);
+    if(NIL_P(rb_method_name)) {
+      method_name = NULL;
+    } else {
+      method_name = StringValueCStr(rb_method_name);
+    }
     frame_data[i].method_name = method_name;
 
     rb_label = rb_profile_frame_full_label(buff[i]);
@@ -36,6 +38,8 @@ static void sampling_job_handler(void *data_unused) {
     frame_data[i].label = label;
 
     rb_file = rb_profile_frame_absolute_path(buff[i]);
+    if(NIL_P(rb_file))
+      rb_file = rb_profile_frame_path(buff[i]);
     file = StringValueCStr(rb_file);
     frame_data[i].file = file;
 
@@ -75,10 +79,10 @@ static void uninstall_signal_handler() {
   sigaction(signal_type, &sa, NULL);
 }
 
-static void start_sigprof_timer() {
+static void start_sigprof_timer(int interval) {
   struct itimerval timer;
   timer.it_interval.tv_sec = 0;
-  timer.it_interval.tv_usec = 30000;
+  timer.it_interval.tv_usec = interval;
   timer.it_value = timer.it_interval;
   setitimer(clock_type, &timer, 0);
 }
@@ -89,7 +93,7 @@ static void stop_sigprof_timer() {
   setitimer(clock_type, &timer, 0);
 }
 
-void rbkit_install_sampling_profiler(int wall_time, queue_sample_func_ptr func) {
+void rbkit_install_sampling_profiler(int wall_time, int interval, queue_sample_func_ptr func) {
   queue_cpu_sample_for_sending = func;
   if(wall_time) {
     signal_type = SIGALRM;
@@ -99,7 +103,7 @@ void rbkit_install_sampling_profiler(int wall_time, queue_sample_func_ptr func) 
     clock_type = ITIMER_PROF;
   }
   install_signal_handler();
-  start_sigprof_timer();
+  start_sigprof_timer(interval);
 }
 
 void rbkit_uninstall_sampling_profiler() {

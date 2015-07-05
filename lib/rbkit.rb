@@ -30,10 +30,12 @@ module Rbkit
   # application where sending commands from the client to enable
   # profiling is not feasible.
   def self.start_profiling(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT,
-                          enable_object_trace: true, enable_gc_stats: true)
+                          enable_object_trace: true, enable_gc_stats: true,
+                          enable_cpu_profiling: true, clock_type: :wall, cpu_profiling_mode: :sampling)
     @server ||= Rbkit::Server.new(pub_port, request_port)
     @server.start(enable_object_trace: enable_object_trace,
-                           enable_gc_stats: enable_gc_stats)
+                  enable_gc_stats: enable_gc_stats,
+                  enable_cpu_profiling: enable_cpu_profiling)
   end
 
   # Stops profiling and brings down the rbkit server if it's running

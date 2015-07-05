@@ -10,6 +10,8 @@ module Rbkit
       @profiler_stop_thread = false
       @server_running = false
       @clock_type = :cpu
+      @cpu_profiling_mode = :sampling
+      @cpu_sampling_interval_usec = 1000
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
         send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
@@ -19,13 +21,18 @@ module Rbkit
       end
     end
 
-    def start(enable_object_trace: false, enable_gc_stats: false)
+    def start(enable_object_trace: false, enable_gc_stats: false,
+              enable_cpu_profiling: false, clock_type: nil, cpu_profiling_mode: nil, cpu_sampling_interval_usec: nil)
       if @server_running || !start_stat_server(pub_port, request_port)
         $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
           " running. Profiling data will not be available."
         return false
       end
       start_stat_tracing if enable_object_trace
+      @cpu_profiling_mode = cpu_profiling_mode if cpu_profiling_mode
+      @clock_type = clock_type if clock_type
+      @cpu_sampling_interval_usec = cpu_sampling_interval_usec if cpu_sampling_interval_usec
+      start_cpu_profiling if enable_cpu_profiling
       @enable_gc_stats = enable_gc_stats
       @server_running = true
       @profiler_thread = Thread.new do
@@ -60,7 +67,7 @@ module Rbkit
       when "use_wall_time"
         @clock_type = :wall
       when "start_cpu_profiling"
-        start_cpu_profiling(clock_type: @clock_type)
+        start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec)
       when "stop_cpu_profiling"
         stop_cpu_profiling
       end
@@ -69,15 +76,16 @@ module Rbkit
     def stop
       return false if !@server_running
       @profiler_stop_thread = true
+      stop_cpu_profiling
       stop_stat_server
       @server_running = false
       true
     end
 
-    def start_cpu_profiling(mode: :sampling, clock_type: :cpu)
+    def start_cpu_profiling(mode: :sampling, clock_type: :cpu, sampling_interval_usec: 1000)
       @cpu_profiling_mode = mode
       if mode == :sampling
-        start_sampling_profiler(clock_type)
+        start_sampling_profiler(clock_type, sampling_interval_usec)
       else
         # TODO
       end
