@@ -5,7 +5,7 @@ describe 'CPU Sampling' do
   let(:sampling_interval_in_usec) { 1000 }
 
   def idle_method
-    sleep 2
+    sleep 3
   end
 
   def find_many_square_roots
