@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'support/have_message_matcher'
 require 'msgpack'
 
 describe "Objectspace dump" do

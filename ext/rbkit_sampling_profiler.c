@@ -5,10 +5,17 @@
 #include "ruby/debug.h"
 #include <signal.h>
 #include <sys/time.h>
+#include "rbkit_time_helper.h"
 
 static int signal_type;
 static int clock_type;
 queue_sample_func_ptr queue_cpu_sample_for_sending;
+
+#ifdef RBKIT_DEV
+static double total_wall_time_spent_in_sampling;
+static double total_cpu_time_spent_in_sampling;
+#endif
+
 
 static void sampling_job_handler(void *data_unused) {
   int start = 0;
@@ -59,12 +66,23 @@ static void sampling_job_handler(void *data_unused) {
 }
 
 static void signal_handler(int signal, siginfo_t* sinfo, void* ucontext) {
+#ifdef RBKIT_DEV
+  double start_wall_time = get_wall_time_in_usec();
+  double start_cpu_time = get_cpu_time_in_usec();
+#endif
   rb_postponed_job_register_one(0, sampling_job_handler, 0);
+#ifdef RBKIT_DEV
+  total_wall_time_spent_in_sampling += (get_wall_time_in_usec() - start_wall_time);
+  total_cpu_time_spent_in_sampling += (get_cpu_time_in_usec() - start_cpu_time);
+#endif
   return;
 }
 
 static void install_signal_handler() {
   struct sigaction sa;
+#ifdef RBKIT_DEV
+  total_cpu_time_spent_in_sampling = total_wall_time_spent_in_sampling = 0;
+#endif
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_RESTART | SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
@@ -77,6 +95,10 @@ static void uninstall_signal_handler() {
   sa.sa_flags = SA_RESTART;
   sigemptyset(&sa.sa_mask);
   sigaction(signal_type, &sa, NULL);
+#ifdef RBKIT_DEV
+  fprintf(stderr, "Time spent in CPU sampling in usecs = %f(wall) %f(cpu)\n", total_wall_time_spent_in_sampling, total_cpu_time_spent_in_sampling);
+#endif
+  return;
 }
 
 static void start_sigprof_timer(int interval) {

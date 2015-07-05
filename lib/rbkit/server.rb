@@ -32,7 +32,7 @@ module Rbkit
       @cpu_profiling_mode = cpu_profiling_mode if cpu_profiling_mode
       @clock_type = clock_type if clock_type
       @cpu_sampling_interval_usec = cpu_sampling_interval_usec if cpu_sampling_interval_usec
-      start_cpu_profiling if enable_cpu_profiling
+      start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec) if enable_cpu_profiling
       @enable_gc_stats = enable_gc_stats
       @server_running = true
       @profiler_thread = Thread.new do
@@ -82,7 +82,7 @@ module Rbkit
       true
     end
 
-    def start_cpu_profiling(mode: :sampling, clock_type: :cpu, sampling_interval_usec: 1000)
+    def start_cpu_profiling(mode: :sampling, clock_type: :wall, sampling_interval_usec: 1000)
       @cpu_profiling_mode = mode
       if mode == :sampling
         start_sampling_profiler(clock_type, sampling_interval_usec)

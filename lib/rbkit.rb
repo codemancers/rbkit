@@ -31,11 +31,14 @@ module Rbkit
   # profiling is not feasible.
   def self.start_profiling(pub_port: DEFAULT_PUB_PORT, request_port: DEFAULT_REQ_PORT,
                           enable_object_trace: true, enable_gc_stats: true,
-                          enable_cpu_profiling: true, clock_type: :wall, cpu_profiling_mode: :sampling)
+                          enable_cpu_profiling: true, clock_type: :wall,
+                          cpu_profiling_mode: :sampling, cpu_sampling_interval_usec: 1000)
     @server ||= Rbkit::Server.new(pub_port, request_port)
     @server.start(enable_object_trace: enable_object_trace,
                   enable_gc_stats: enable_gc_stats,
-                  enable_cpu_profiling: enable_cpu_profiling)
+                  enable_cpu_profiling: enable_cpu_profiling,
+                  clock_type: clock_type,
+                  cpu_sampling_interval_usec: cpu_sampling_interval_usec)
   end
 
   # Stops profiling and brings down the rbkit server if it's running

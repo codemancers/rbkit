@@ -1,5 +1,6 @@
 require 'rbkit'
 require 'support/foo_bar_sample_class'
+require 'support/custom_matchers'
 Rbkit.enable_test_mode
 RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
