@@ -5,7 +5,11 @@ describe 'CPU Sampling' do
   let(:sampling_interval_in_usec) { 1000 }
 
   def idle_method
-    sleep 3
+    r, w = IO.pipe
+    IO.select([r], nil, nil, 2)
+  ensure
+    r.close
+    w.close
   end
 
   def find_many_square_roots
@@ -54,7 +58,7 @@ describe 'CPU Sampling' do
     let(:operation) { lambda{ idle_method; find_many_square_roots; } }
     it 'should collect most samples for expensive cpu intensive operation' do
       expect(@messages).to have_message(Rbkit::EVENT_TYPES[:cpu_sample])
-      expect(@messages).to have_most_cpu_samples_for("#{__FILE__}:12")
+      expect(@messages).to have_most_cpu_samples_for("#{__FILE__}:16")
     end
   end
 end
