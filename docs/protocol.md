@@ -121,7 +121,10 @@ is of the following format :
     "process_name" => <Name of the process>,
     "pwd" => <working directory of the app>,
     "pid" => <PID of the ruby process>,
-    "object_trace_enabled" => <0 or 1>
+    "object_trace_enabled" => <0 or 1>,
+    "cpu_profiling_enabled" => <0 or 1>,
+    "clock_type" => <:wall or :cpu>,
+    "cpu_profiling_mode" => <:sampling>
   }
 }
 ```

@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'msgpack'
 
 describe "obj_created event" do
   let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }

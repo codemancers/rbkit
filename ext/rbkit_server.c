@@ -209,12 +209,13 @@ int tracer_string_send(void *socket, const char *message) {
    return size;
 }
 
-static VALUE rbkit_status_as_hash() {
+static VALUE rbkit_status_as_hash(VALUE self) {
   VALUE status = rb_hash_new();
   VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
   VALUE processName = rb_funcall(rb_path2class("Process"), rb_intern("argv0"), 0, 0);
   VALUE rbkitModule = rb_define_module("Rbkit");
   int object_trace_enabled = (logger && logger->enabled) ? 1 : 0;
+  int cpu_profiling_enabled = (logger && logger->sampling_profiler_enabled) ? 1 : 0;
 
   rb_hash_aset(status, ID2SYM(rb_intern("rbkit_server_version")), rb_const_get(rbkitModule, rb_intern("VERSION")));
   rb_hash_aset(status, ID2SYM(rb_intern("rbkit_protocol_version")), rbkit_protocol_version());
@@ -222,14 +223,17 @@ static VALUE rbkit_status_as_hash() {
   rb_hash_aset(status, ID2SYM(rb_intern("pwd")), rb_dir_getwd());
   rb_hash_aset(status, ID2SYM(rb_intern("pid")), pid);
   rb_hash_aset(status, ID2SYM(rb_intern("object_trace_enabled")), INT2FIX(object_trace_enabled));
+  rb_hash_aset(status, ID2SYM(rb_intern("cpu_profiling_enabled")), INT2FIX(cpu_profiling_enabled));
+  rb_hash_aset(status, ID2SYM(rb_intern("clock_type")), rb_ivar_get(self, rb_intern("@clock_type")));
+  rb_hash_aset(status, ID2SYM(rb_intern("cpu_profiling_mode")), rb_ivar_get(self, rb_intern("@cpu_profiling_mode")));
   return status;
 }
 
-static void send_handshake_response() {
+static void send_handshake_response(VALUE self) {
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash());
+  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash(self));
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
@@ -240,7 +244,7 @@ static void send_handshake_response() {
   msgpack_packer_free(packer);
 }
 
-static VALUE poll_for_request() {
+static VALUE poll_for_request(VALUE self) {
   VALUE command_ruby_string;
   char *message;
   // Wait for 100 millisecond and check if there is a message
@@ -251,7 +255,7 @@ static VALUE poll_for_request() {
   if (items[0].revents && ZMQ_POLLIN) {
     message = tracer_string_recv(zmq_response_socket);
     if(strcmp(message, "handshake") == 0) {
-      send_handshake_response();
+      send_handshake_response(self);
     } else {
       tracer_string_send(zmq_response_socket, "ok");
     }

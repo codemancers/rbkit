@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'msgpack'
 
 describe "Objectspace dump" do
   let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }

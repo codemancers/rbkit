@@ -7,6 +7,8 @@
 #include <sys/time.h>
 #include "rbkit_time_helper.h"
 
+#define BUF_SIZE 2048
+
 static int signal_type;
 static int clock_type;
 queue_sample_func_ptr queue_cpu_sample_for_sending;
@@ -19,8 +21,9 @@ static double total_cpu_time_spent_in_sampling;
 
 static void sampling_job_handler(void *data_unused) {
   int start = 0;
-  int lines[2048];
-  VALUE buff[2048], rb_method_name, rb_label, rb_file, rb_singleton_method;
+  int lines[BUF_SIZE];
+  VALUE buff[BUF_SIZE];
+  VALUE rb_method_name, rb_label, rb_file, rb_singleton_method;
   int i, is_singleton;
   char *method_name, *label, *file;
   unsigned long line, thread_id;

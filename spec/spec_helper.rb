@@ -1,4 +1,5 @@
 require 'rbkit'
+require 'msgpack'
 require 'support/foo_bar_sample_class'
 require 'support/custom_matchers'
 Rbkit.enable_test_mode

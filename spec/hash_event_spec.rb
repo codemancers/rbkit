@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'msgpack'
 
 describe 'send_hash_as_event' do
   let(:hash) { {'foo' => 'bar', 123 => "hello world"} }
