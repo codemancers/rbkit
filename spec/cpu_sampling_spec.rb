@@ -6,7 +6,7 @@ describe 'CPU Sampling' do
 
   def idle_method
     r, w = IO.pipe
-    IO.select([r], nil, nil, 2)
+    IO.select([r], nil, nil, 0.5)
   ensure
     r.close
     w.close
