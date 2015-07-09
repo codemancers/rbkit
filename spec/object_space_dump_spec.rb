@@ -40,7 +40,7 @@ describe "Objectspace dump" do
     end
   end
   before(:all) do
-    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true, enable_cpu_profiling: false)
     @foo_obj_line = __LINE__ + 1
     @foo_obj = Foo.new
     server.send_objectspace_dump
