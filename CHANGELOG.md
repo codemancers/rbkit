@@ -22,4 +22,6 @@ WIP
 * Split object dump into smaller messages [#77](https://github.com/code-mancers/rbkit/pull/77)
 * Fix bug with handshake broken because of Rbkit::VERSION not being available.
 * Make REQ and PUB ports configurable using ENV variables
+* Always bind to 127.0.0.1
 * Add CPU Sampling profiler and cpu_sample message type. Bump up protocol version to v2.1
+* Use C89 std for compiling rbkit
