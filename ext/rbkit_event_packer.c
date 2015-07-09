@@ -1,7 +1,7 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_sampling_profiler.h"
-#include <sys/time.h>
+#include "rbkit_time_helper.h"
 
 static void pack_string(msgpack_packer *packer, const char *string) {
   if(string == NULL) {
@@ -14,12 +14,7 @@ static void pack_string(msgpack_packer *packer, const char *string) {
 }
 
 static void pack_timestamp(msgpack_packer *packer) {
-  double time_in_milliseconds;
-  struct timeval tv;
-
-  gettimeofday(&tv, NULL);
-  time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
-  msgpack_pack_double(packer, time_in_milliseconds);
+  msgpack_pack_double(packer, get_wall_time_in_msec());
 }
 
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)

@@ -14,7 +14,6 @@
 #include "rbkit_message_aggregator.h"
 #include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
-#include <sys/time.h>
 
 static rbkit_logger *logger;
 static void *zmq_publisher;
