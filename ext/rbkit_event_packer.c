@@ -213,6 +213,7 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
 
 static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer *packer) {
   rbkit_cpu_sample *sample;
+  size_t count;
 
   msgpack_pack_map(packer, 3);
   sample = event->sample;
@@ -225,35 +226,32 @@ static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer 
   // Value 3: Array of samples
   msgpack_pack_array(packer, sample->frame_count);
 
-  if(sample->frame_count != 0) {
-    size_t count = 0;
-    for(; count < sample->frame_count; count++ ){
-      msgpack_pack_map(packer, 6);
+  for(count = 0; count != sample->frame_count; count++){
+    msgpack_pack_map(packer, 6);
 
-      // method_name
-      msgpack_pack_int(packer, rbkit_message_field_method_name);
-      pack_string(packer, sample->frames[count].method_name);
+    // method_name
+    msgpack_pack_int(packer, rbkit_message_field_method_name);
+    pack_string(packer, sample->frames[count].method_name);
 
-      // label
-      msgpack_pack_int(packer, rbkit_message_field_label);
-      pack_string(packer, sample->frames[count].label);
+    // label
+    msgpack_pack_int(packer, rbkit_message_field_label);
+    pack_string(packer, sample->frames[count].label);
 
-      // file
-      msgpack_pack_int(packer, rbkit_message_field_file);
-      pack_string(packer, sample->frames[count].file);
+    // file
+    msgpack_pack_int(packer, rbkit_message_field_file);
+    pack_string(packer, sample->frames[count].file);
 
-      // line
-      msgpack_pack_int(packer, rbkit_message_field_line);
-      msgpack_pack_unsigned_long(packer, sample->frames[count].line);
+    // line
+    msgpack_pack_int(packer, rbkit_message_field_line);
+    msgpack_pack_unsigned_long(packer, sample->frames[count].line);
 
-      // singleton_method
-      msgpack_pack_int(packer, rbkit_message_field_singleton_method);
-      msgpack_pack_int(packer, sample->frames[count].is_singleton_method);
+    // singleton_method
+    msgpack_pack_int(packer, rbkit_message_field_singleton_method);
+    msgpack_pack_int(packer, sample->frames[count].is_singleton_method);
 
-      // thread_od
-      msgpack_pack_int(packer, rbkit_message_field_thread_id);
-      msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);
-    }
+    // thread_od
+    msgpack_pack_int(packer, rbkit_message_field_thread_id);
+    msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);
   }
 }
 
