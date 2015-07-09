@@ -1,6 +1,6 @@
 #ifndef RBKIT_MESSAGE_PACKER
 #define RBKIT_MESSAGE_PACKER
-#define RBKIT_PROTOCOL_VERSION "2.0"
+#define RBKIT_PROTOCOL_VERSION "2.1"
 #include "msgpack.h"
 #include "rbkit_event.h"
 

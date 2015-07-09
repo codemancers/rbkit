@@ -91,7 +91,7 @@ describe 'status' do
 
   describe 'rbkit_protocol_version field' do
     it 'should be equal to Rbkit version' do
-      expect(Rbkit::PROTOCOL_VERSION).to eql "2.0"
+      expect(Rbkit::PROTOCOL_VERSION).to eql "2.1"
       expect(@status[:rbkit_protocol_version]).to eql Rbkit::PROTOCOL_VERSION
     end
   end
