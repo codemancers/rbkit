@@ -1,6 +1,7 @@
 require 'zmq'
 require 'msgpack'
 require 'pp'
+require 'rbkit'
 
 Thread.abort_on_exception = true
 
@@ -53,7 +54,8 @@ socket.connect("tcp://#{server_ip}:#{pub_port}")
 begin
   loop do
     message = socket.recv
-    unpacked_message = MessagePack.unpack(message)
+    packed_response = Rbkit::LZ4.uncompress(message)
+    unpacked_message = MessagePack.unpack(packed_response)
     PP.pp(unpacked_message, output_file)
     output_file.flush
   end

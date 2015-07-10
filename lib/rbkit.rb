@@ -3,7 +3,6 @@ require "rbkit_server"
 require "rbkit/timer"
 require "rbkit/rbkit_gc"
 require "rbkit/server"
-#require "objspace"
 
 # Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit

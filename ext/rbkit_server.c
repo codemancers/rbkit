@@ -14,6 +14,7 @@
 #include "rbkit_message_aggregator.h"
 #include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
+#include "rbkit_lz4.h"
 
 static rbkit_logger *logger;
 static void *zmq_publisher;
@@ -21,6 +22,8 @@ static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 static int test_mode_enabled = 0;
+static int total_bytes_before_compression = 0;
+static int total_bytes_after_compression = 0;
 
 static rbkit_logger * get_trace_logger() {
   if (logger == 0) {
@@ -45,18 +48,41 @@ static rbkit_logger * get_trace_logger() {
  */
 static VALUE send_messages() {
   msgpack_sbuffer *sbuf;
+  char *compressed_buf = NULL;
+  int bytes_after_compressing = 0;
+  int max_dest_size;
   if(test_mode_enabled)
     return Qnil; //NOOP
 
   //Get all aggregated messages as payload of a single event.
   sbuf = msgpack_sbuffer_new();
   get_event_collection_message(sbuf);
+
+  fprintf(stderr, "vvvvvvvvvvvvvvvvvv\n");
+  if(sbuf && sbuf->size > 0) {
+    max_dest_size = lz4_max_compressed_length((int)sbuf->size);
+    compressed_buf = malloc(max_dest_size);
+    bytes_after_compressing = lz4_compress(sbuf->data, compressed_buf, (int)sbuf->size, max_dest_size);
+    msgpack_sbuffer_free(sbuf);
+    total_bytes_before_compression += sbuf->size;
+    total_bytes_after_compression += bytes_after_compressing;
+    fprintf(stderr, "Bytes before: %d, bytes after: %d\n", sbuf->size, bytes_after_compressing);
+    fprintf(stderr, "Percentage savings for this message : %f\n", (float)(sbuf->size - bytes_after_compressing) * 100 / (float)sbuf->size );
+  }
   //Send the msgpack array over zmq PUB socket
-  if(sbuf && sbuf->size > 0)
-    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+  if(compressed_buf && bytes_after_compressing > 0) {
+    zmq_send(zmq_publisher, compressed_buf, bytes_after_compressing, 0);
+    fprintf(stderr, "Total bytes before: %d, bytes after: %d\n", total_bytes_before_compression, total_bytes_after_compression);
+    fprintf(stderr, "Total saved %d bytes\n", total_bytes_before_compression - total_bytes_after_compression);
+    if(total_bytes_before_compression) {
+      float overall_savings_percentage = (float)(total_bytes_before_compression - total_bytes_after_compression) * 100 / (float)total_bytes_before_compression;
+      fprintf(stderr, "Overall percentage savings : %f\n", overall_savings_percentage );
+    }
+  }
   // Clear the aggregated messages
   message_list_clear();
-  msgpack_sbuffer_free(sbuf);
+  free(compressed_buf);
+  fprintf(stderr, "^^^^^^^^^^^^^^^^^^\n");
   return Qnil;
 }
 
@@ -431,4 +457,6 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_method(rbkit_server, "send_messages", send_messages, 0);
   rb_define_method(rbkit_server, "status", rbkit_status_as_hash, 0);
+
+  Init_rbkit_lz4();
 }

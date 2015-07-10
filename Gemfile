@@ -7,5 +7,4 @@ group :exclude_in_travis do
   gem 'rbczmq'
 end
 
-
 gemspec
