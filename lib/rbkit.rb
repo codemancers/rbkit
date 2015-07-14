@@ -46,4 +46,8 @@ module Rbkit
       false
     end
   end
+
+  def self.server
+    @server
+  end
 end

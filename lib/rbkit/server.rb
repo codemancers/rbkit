@@ -1,13 +1,12 @@
 module Rbkit
   class Server
-    attr_accessor :pub_port, :request_port
+    attr_accessor :pub_port, :request_port, :publish_callback, :respond_callback
 
     def initialize(pub_port, request_port)
       [pub_port, request_port].each{|port| validate_port_range(port) }
       @pub_port = pub_port
       @request_port = request_port
-      @profiler_thread = nil
-      @profiler_stop_thread = false
+      @stop_profiler_thread = false
       @server_running = false
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
@@ -19,7 +18,7 @@ module Rbkit
     end
 
     def start(enable_object_trace: false, enable_gc_stats: false)
-      if @server_running || !start_stat_server(pub_port, request_port)
+      if @server_running || !start_stat_server(pub_port, request_port, true)
         $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
           " running. Profiling data will not be available."
         return false
@@ -27,22 +26,26 @@ module Rbkit
       start_stat_tracing if enable_object_trace
       @enable_gc_stats = enable_gc_stats
       @server_running = true
-      @profiler_thread = Thread.new do
+
+      # Message dispatch loop
+      Thread.new do
         loop do
           break if @stop_profiler_thread
           incoming_request = poll_for_request
-          process_incoming_request(incoming_request)
+          process_incoming_request(incoming_request) unless String(incoming_request).empty?
           @gc_stats_timer.run if @enable_gc_stats
           @message_dispatch_timer.run
           # Let us sleep this thread for a bit, so as other things can run.
           sleep(0.05)
         end
       end
+
       at_exit { stop }
       self
     end
 
     def process_incoming_request(incoming_request)
+      return if !@server_running
       case incoming_request
       when "start_memory_profile"
         start_stat_tracing
@@ -54,12 +57,16 @@ module Rbkit
         GC.start
       when "objectspace_snapshot"
         send_objectspace_dump
+      when "handshake"
+        send_handshake_response
+        return # No need of command ack
       end
+      send_command_ack
     end
 
     def stop
       return false if !@server_running
-      @profiler_stop_thread = true
+      @stop_profiler_thread = true
       stop_stat_server
       @server_running = false
       true

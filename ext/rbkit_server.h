@@ -19,9 +19,9 @@ typedef struct _rbkit_logger {
   VALUE freeobj_trace;
   msgpack_sbuffer *sbuf;
   msgpack_packer *msgpacker;
+  VALUE self;
 } rbkit_logger;
 
 char * tracer_string_recv(void *socket);
-int tracer_string_send(void *socket, const char *message);
 
 #endif

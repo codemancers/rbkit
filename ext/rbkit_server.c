@@ -29,8 +29,9 @@ static void *zmq_context;
 static void *zmq_response_socket;
 static zmq_pollitem_t items[1];
 static int test_mode_enabled = 0;
+static VALUE callbacks_enabled = Qfalse;
 
-static rbkit_logger * get_trace_logger() {
+static rbkit_logger * get_trace_logger(VALUE self) {
   int i = 0;
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
@@ -43,15 +44,42 @@ static rbkit_logger * get_trace_logger() {
     logger->sbuf = msgpack_sbuffer_new();
     logger->msgpacker = msgpack_packer_new(logger->sbuf, msgpack_sbuffer_write);
     logger->data = 0;
+    logger->self = self;
   }
   return logger;
+}
+
+static void publish_message(VALUE self, char *buf, size_t size) {
+    zmq_send(zmq_publisher, buf, size, 0);
+    if(callbacks_enabled == Qtrue) {
+      fprintf(stderr, "PUB callbacks are enabled\n");
+      VALUE publish_callback = rb_ivar_get(self, rb_intern("@publish_callback"));
+      if (!NIL_P(publish_callback)) {
+        VALUE message = rb_str_new(buf, size);
+        VALUE argv[] = { message };
+        rb_proc_call_with_block(publish_callback, 1, argv, Qnil);
+      }
+    }
+}
+
+static void respond_with_message(VALUE self, char *buf, size_t size) {
+    zmq_send(zmq_response_socket, buf, size, 0);
+    if(callbacks_enabled == Qtrue) {
+      fprintf(stderr, "REP callbacks are enabled\n");
+      VALUE respond_callback = rb_ivar_get(self, rb_intern("@respond_callback"));
+      if (!NIL_P(respond_callback)) {
+        VALUE message = rb_str_new(buf, size);
+        VALUE argv[] = { message };
+        rb_proc_call_with_block(respond_callback, 1, argv, Qnil);
+      }
+    }
 }
 
 /*
  * Creates a msgpack array which contains all the messages packed after
  * the last time send_messages() was called, and sends it over the PUB socket.
  */
-static VALUE send_messages() {
+static VALUE send_messages(VALUE self) {
   if(test_mode_enabled)
     return Qnil; //NOOP
 
@@ -60,7 +88,7 @@ static VALUE send_messages() {
   get_event_collection_message(sbuf);
   //Send the msgpack array over zmq PUB socket
   if(sbuf && sbuf->size > 0)
-    zmq_send(zmq_publisher, sbuf->data, sbuf->size, 0);
+    publish_message(self, sbuf->data, sbuf->size);
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_free(sbuf);
@@ -69,10 +97,10 @@ static VALUE send_messages() {
 
 // Adds the message to the queue and sends the queued messages if
 // the queue becomes full.
-static void send_message(msgpack_sbuffer *buffer) {
+static void send_message(VALUE self, msgpack_sbuffer *buffer) {
   queue_message(buffer);
   if(queued_message_count() == MESSAGE_BATCH_SIZE)
-    send_messages();
+    send_messages(self);
 }
 
 static void
@@ -83,7 +111,7 @@ gc_start_i(VALUE tpval, void *data)
   event->event_type = gc_start;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  send_message(arg->self, arg->sbuf);
 }
 
 static void
@@ -94,7 +122,7 @@ gc_end_mark_i(VALUE tpval, void *data)
   event->event_type = gc_end_m;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  send_message(arg->self, arg->sbuf);
 }
 
 static void
@@ -105,7 +133,7 @@ gc_end_sweep_i(VALUE tpval, void *data)
   event->event_type = gc_end_s;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  send_message(arg->self, arg->sbuf);
 }
 
 static void
@@ -137,7 +165,7 @@ static void newobj_i(VALUE tpval, void *data) {
   rbkit_obj_created_event *event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  send_message(arg->self, arg->sbuf);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
@@ -152,7 +180,7 @@ static void freeobj_i(VALUE tpval, void *data) {
   rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  send_message(arg->self, arg->sbuf);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -160,7 +188,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   VALUE request_port;
   int bind_result;
 
-  rb_scan_args(argc, argv, "02", &pub_port, &request_port);
+  rb_scan_args(argc, argv, "03", &pub_port, &request_port, &callbacks_enabled);
 
   char zmq_endpoint[14];
   sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
@@ -179,7 +207,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
 
   // Creates a list which aggregates messages
   message_list_new();
-  logger = get_trace_logger();
+  logger = get_trace_logger(self);
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
   rb_gc_register_mark_object(logger->newobj_trace);
@@ -206,12 +234,6 @@ char * tracer_string_recv(void *socket) {
   return message;
 }
 
-
-int tracer_string_send(void *socket, const char *message) {
-   int size = zmq_send (socket, message, strlen (message), 0);
-   return size;
-}
-
 static VALUE rbkit_status_as_hash() {
   VALUE status = rb_hash_new();
   VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
@@ -228,7 +250,7 @@ static VALUE rbkit_status_as_hash() {
   return status;
 }
 
-static void send_handshake_response() {
+static VALUE send_handshake_response(VALUE self) {
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
@@ -237,10 +259,11 @@ static void send_handshake_response() {
   free(event);
 
   if(buffer && buffer->size > 0)
-    zmq_send(zmq_response_socket, buffer->data, buffer->size, 0);
+    respond_with_message(self, buffer->data, buffer->size);
 
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
+  return Qnil;
 }
 
 static VALUE poll_for_request() {
@@ -251,17 +274,23 @@ static VALUE poll_for_request() {
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
     char *message = tracer_string_recv(zmq_response_socket);
-    if(strcmp(message, "handshake") == 0) {
-      send_handshake_response();
-    } else {
-      tracer_string_send(zmq_response_socket, "ok");
-    }
+    /*if(strcmp(message, "handshake") == 0) {*/
+      /*send_handshake_response();*/
+    /*} else {*/
+      /*tracer_string_send(zmq_response_socket, "ok");*/
+    /*}*/
     VALUE command_ruby_string = rb_str_new_cstr(message);
     free(message);
     return command_ruby_string;
   } else {
     return Qnil;
   }
+}
+
+static VALUE send_command_ack(VALUE self) {
+  char *response = "ok";
+  respond_with_message(self, response, strlen(response));
+  return Qnil;
 }
 
 static VALUE stop_stat_tracing() {
@@ -325,7 +354,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
-  send_message(buffer);
+  send_message(self, buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
   return Qnil;
@@ -344,7 +373,7 @@ static VALUE start_stat_tracing() {
   return Qnil;
 }
 
-static VALUE send_objectspace_dump() {
+static VALUE send_objectspace_dump(VALUE self) {
   msgpack_sbuffer* buffer = msgpack_sbuffer_new();
   msgpack_packer* pk = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
@@ -356,7 +385,7 @@ static VALUE send_objectspace_dump() {
   // until we've packed all objects.
   while(event->packed_objects < event->object_count) {
     pack_event((rbkit_event_header *)event, pk);
-    send_message(buffer);
+    send_message(self, buffer);
   }
 
   free(event->current_page);
@@ -390,4 +419,6 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "send_hash_as_event", send_hash_as_event, -1);
   rb_define_method(rbkit_server, "send_messages", send_messages, 0);
   rb_define_method(rbkit_server, "status", rbkit_status_as_hash, 0);
+  rb_define_method(rbkit_server, "send_handshake_response", send_handshake_response, 0);
+  rb_define_method(rbkit_server, "send_command_ack", send_command_ack, 0);
 }
