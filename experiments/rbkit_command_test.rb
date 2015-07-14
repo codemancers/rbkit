@@ -53,8 +53,8 @@ socket.connect("tcp://#{server_ip}:#{pub_port}")
 begin
   loop do
     message = socket.recv
-    unpacked_message = MessagePack.unpack(message)
-    PP.pp(unpacked_message, output_file)
+    #unpacked_message = MessagePack.unpack(message)
+    PP.pp(message, output_file)
     output_file.flush
   end
 ensure
