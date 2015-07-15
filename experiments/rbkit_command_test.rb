@@ -3,7 +3,7 @@ require 'msgpack'
 require 'pp'
 
 Thread.abort_on_exception = true
-
+dumps = []
 
 commands = [
   'start_memory_profile',
@@ -39,6 +39,11 @@ Thread.new do
     unless command.empty?
       request_socket.send(command)
       puts "sent #{command}"
+      if command=="stop_cpu_profiling" then
+        #command is stop_cpu_profiling
+        packed_message = MessagePack.pack dumps
+        output_file.write packed_message
+      end
       response = request_socket.recv()
       response = MessagePack.unpack(response) unless response == "ok"
       puts "received #{response}"
@@ -53,8 +58,9 @@ socket.connect("tcp://#{server_ip}:#{pub_port}")
 begin
   loop do
     message = socket.recv
-    #unpacked_message = MessagePack.unpack(message)
-    PP.pp(message, output_file)
+    unpacked_message = MessagePack.unpack(message)
+    dumps << unpacked_message
+    #PP.pp(message, output_file)
     output_file.flush
   end
 ensure
