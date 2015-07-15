@@ -75,6 +75,18 @@ static void respond_with_message(VALUE self, char *buf, size_t size) {
     }
 }
 
+static void trigger_publish_callback(void * self) {
+  //Get all aggregated messages as payload of a single event.
+  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  get_event_collection_message(sbuf);
+  //Send the msgpack array over zmq PUB socket
+  if(sbuf && sbuf->size > 0)
+    publish_message((VALUE)self, sbuf->data, sbuf->size);
+  // Clear the aggregated messages
+  message_list_clear();
+  msgpack_sbuffer_free(sbuf);
+}
+
 /*
  * Creates a msgpack array which contains all the messages packed after
  * the last time send_messages() was called, and sends it over the PUB socket.
@@ -83,15 +95,7 @@ static VALUE send_messages(VALUE self) {
   if(test_mode_enabled)
     return Qnil; //NOOP
 
-  //Get all aggregated messages as payload of a single event.
-  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
-  get_event_collection_message(sbuf);
-  //Send the msgpack array over zmq PUB socket
-  if(sbuf && sbuf->size > 0)
-    publish_message(self, sbuf->data, sbuf->size);
-  // Clear the aggregated messages
-  message_list_clear();
-  msgpack_sbuffer_free(sbuf);
+  rb_postponed_job_register(0, trigger_publish_callback, (void *)self);
   return Qnil;
 }
 
