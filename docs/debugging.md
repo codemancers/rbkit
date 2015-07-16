@@ -1,4 +1,10 @@
-### How to debug a extension coming from C extension ###
+# How to debug a C extension
+
+## Using XCode
+
+Follow [this tutorial](http://www.emilsoman.com/blog/2014/08/06/debugging-ruby-c-extensions-in-xcode/)
+
+## Using lldb
 
 1. Build a Ruby which is compiled with debug symbols:
 

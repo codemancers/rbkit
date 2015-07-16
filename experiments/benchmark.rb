@@ -17,20 +17,20 @@ Benchmark.bm do |bm|
     do_stuff
   end
 
-  Rbkit.start_profiling
+  server = Rbkit.start_profiling(pub_port: 9999, request_port: 9998)
   bm.report('Running code with Rbkit tracing :') do
     do_stuff
   end
 
   bm.report('Time taken for objectspace snapshot :') do
-    Rbkit.send_objectspace_dump
+    server.send_objectspace_dump
   end
 
   bm.report('Running code after objectspace snapshot :') do
     do_stuff
   end
 
-  Rbkit.stop_server
+  server.stop
   bm.report('Running code after disabling rbkit :') do
     do_stuff
   end
