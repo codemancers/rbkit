@@ -45,7 +45,7 @@ static void publish_message(char *buf, size_t size) {
   if(zmq_publisher)
     zmq_send(zmq_publisher, buf, size, 0);
   publish_callback = rb_ivar_get(server_instance, rb_intern("@publish_callback"));
-  if (!rb_obj_is_proc(publish_callback)) {
+  if (rb_obj_is_proc(publish_callback) == Qtrue) {
     VALUE message = rb_str_new(buf, size);
     VALUE argv[] = { message };
     rb_proc_call_with_block(publish_callback, 1, argv, Qnil);
@@ -57,7 +57,7 @@ static void respond_with_message(char *buf, size_t size) {
   if(zmq_response_socket)
     zmq_send(zmq_response_socket, buf, size, 0);
   respond_callback = rb_ivar_get(server_instance, rb_intern("@respond_callback"));
-  if (!rb_obj_is_proc(respond_callback)) {
+  if (rb_obj_is_proc(respond_callback) == Qtrue) {
     VALUE message = rb_str_new(buf, size);
     VALUE argv[] = { message };
     rb_proc_call_with_block(respond_callback, 1, argv, Qnil);
