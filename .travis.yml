@@ -1,3 +1,4 @@
+sudo: false # Use a container for faster boot time
 language: ruby
 bundler_args: "--without exclude_in_travis"
 rvm:

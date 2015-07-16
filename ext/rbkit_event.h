@@ -2,6 +2,7 @@
 #define RBKIT_EVENT
 #include "rbkit_allocation_info.h"
 #include "rbkit_object_graph.h"
+#include "rbkit_sampling_profiler.h"
 
 typedef enum _event_type {
   obj_created,
@@ -12,7 +13,8 @@ typedef enum _event_type {
   object_space_dump,
   gc_stats,
   event_collection,
-  handshake
+  handshake,
+  cpu_sample
 } rbkit_event_type;
 
 VALUE rbkit_event_types_as_hash();
@@ -51,10 +53,17 @@ typedef struct _rbkit_object_space_dump_event {
   size_t object_count;
   rbkit_object_dump_page *current_page;
   size_t current_page_index;
-  size_t correlation_id;
+  int correlation_id;
 } rbkit_object_space_dump_event;
 
 rbkit_object_space_dump_event *new_rbkit_object_space_dump_event(rbkit_object_dump *dump);
+
+typedef struct _rbkit_cpu_sample_event {
+  rbkit_event_header event_header;
+  rbkit_cpu_sample *sample;
+} rbkit_cpu_sample_event;
+
+rbkit_cpu_sample_event *new_rbkit_cpu_sample_event(rbkit_cpu_sample *sample);
 
 typedef struct _rbkit_event_collection_event {
   rbkit_event_header event_header;

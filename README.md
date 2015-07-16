@@ -65,15 +65,20 @@ a good place to put this would be at the end of `config/boot.rb`.
 
 ## Rbkit API
 
-### Rbkit.start_server(pub_port: nil, request_port: nil)
+### Rbkit.start_server
+
+Without any arguments, it's same as :
+```ruby
+Rbkit.start_server(pub_port: nil, request_port: nil)
+```
 
 Starts the Rbkit server and waits for a client to connect and issue
 commands to the request_port, until then there's zero performance overhead.
 Profiling data is sent asynchronously over pub_port.
 This method can be called early in a ruby application so that
 whenever profiling needs to be done, the client can attach itself to the
-inactive server, do the profiling and leave. Returns true if server was
-started successfully.
+inactive server, do the profiling and leave. Returns an instance of
+`Rbkit::Server` if server was started successfully, else returns false.
 
 
 |argument      | valid values | default value | description                                       |
@@ -82,22 +87,41 @@ started successfully.
 |request_port  | nil, fixnum  | nil           | Override default command listener port of 5556    |
 
 
-### Rbkit.start_profiling(pub_port: nil, request_port: nil, enable_object_trace: true, enable_gc_stats: true)
+### Rbkit.start_profiling
+
+Without any arguments, it's same as :
+```ruby
+Rbkit.start_profiling(
+  pub_port: nil,
+  request_port: nil,
+  enable_object_trace: true,
+  enable_gc_stats: true,
+  enable_cpu_profiling: true,
+  clock_type: :wall,
+  cpu_profiling_mode: :sampling,
+  cpu_sampling_interval_usec: 1000
+)
+```
 
 Starts the server with all tracepoints enabled by default. User can
 optionally disable tracepoints using the optional arguments.
 This method can be used to profile the startup process of a ruby
 application where sending commands from the client to enable
-profiling is not feasible. Returns true if server was started successfully.
+profiling is not feasible. Returns an instance of `Rbkit::Server`
+if server was started successfully, else returns false.
 
 Arguments:
 
-|argument             | valid values | default value | description                                      |
-|---------------------|--------------|---------------|--------------------------------------------------|
-|pub_port             | nil, fixnum  | nil           | Override default message publishing port of 5555 |
-|request_port         | nil, fixnum  | nil           | Override default command listener port of 5556   |
-|enable_object_trace  | true/false   | true          | Enables object creation/deletion events          |
-|enable_gc_stats      | true/false   | true          | Enables GC stats which is sent every 5 seconds   |
+|argument                   | valid values | default value | description                                      |
+|---------------------------|--------------|---------------|--------------------------------------------------|
+|pub_port                   | nil, fixnum  | nil           | Override default message publishing port of 5555 |
+|request_port               | nil, fixnum  | nil           | Override default command listener port of 5556   |
+|enable_object_trace        | true/false   | true          | Enables object creation/deletion events          |
+|enable_gc_stats            | true/false   | true          | Enables GC stats which is sent every 5 seconds   |
+|enable_cpu_profiling       | true/false   | true          | Enables CPU profiling                            |
+|clock_type                 | :wall/:cpu   | :wall         | Specifies clock type to use in CPU profiling     |
+|cpu_profiling_mode         | :sampling    | :sampling     | CPU profiling mode - currently only sampling     |
+|cpu_sampling_interval_usec | Fixnums      | 1000          | CPU Sampling interval un usec, if sampling mode  |
 
 
 ## Development

@@ -12,6 +12,7 @@
 typedef struct _rbkit_logger {
   VALUE hooks[3];
   VALUE enabled;
+  VALUE sampling_profiler_enabled;
   void *data;
   st_table *object_table;
   st_table *str_table;
