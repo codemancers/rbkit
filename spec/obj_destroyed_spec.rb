@@ -1,6 +1,4 @@
 require 'spec_helper'
-require 'support/have_message_matcher'
-require 'msgpack'
 
 describe "obj_destroyed event" do
   let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }
@@ -21,7 +19,7 @@ describe "obj_destroyed event" do
         x[payload][object_id] == short_lived_bar_object_id}
   end
   before(:all) do
-    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true, enable_cpu_profiling: false)
     @foo_obj = Foo.new
     GC.start
     packed_message = server.get_queued_messages

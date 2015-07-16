@@ -1,23 +1,20 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
-#include <sys/time.h>
+#include "rbkit_sampling_profiler.h"
+#include "rbkit_time_helper.h"
 
 static void pack_string(msgpack_packer *packer, const char *string) {
   if(string == NULL) {
     msgpack_pack_nil(packer);
   } else {
-    int length = strlen(string);
+    int length = (int)strlen(string);
     msgpack_pack_raw(packer, length);
     msgpack_pack_raw_body(packer, string, length);
   }
 }
 
 static void pack_timestamp(msgpack_packer *packer) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    double time_in_milliseconds = (tv.tv_sec)*1000 + (tv.tv_usec)/1000;
-    msgpack_pack_double(packer, time_in_milliseconds);
+  msgpack_pack_double(packer, get_wall_time_in_msec());
 }
 
 static void pack_event_header(msgpack_packer* packer, rbkit_event_type event_type)
@@ -64,6 +61,8 @@ static void pack_event_header_only(rbkit_event_header *event_header, msgpack_pac
 }
 
 static void pack_value_object(msgpack_packer *packer, VALUE value) {
+  VALUE rubyString;
+  char *keyString;
   switch (TYPE(value)) {
     case T_FIXNUM:
       msgpack_pack_long(packer, FIX2LONG(value));
@@ -73,8 +72,8 @@ static void pack_value_object(msgpack_packer *packer, VALUE value) {
       break;
     default:
       ;
-      VALUE rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
-      char *keyString = StringValueCStr(rubyString);
+      rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
+      keyString = StringValueCStr(rubyString);
       pack_string(packer, keyString);
       break;
   }
@@ -91,17 +90,26 @@ static int hash_pack_iterator(VALUE key, VALUE value, VALUE hash_arg) {
 }
 
 static void pack_hash_event(rbkit_hash_event *event, msgpack_packer *packer) {
+  VALUE hash;
+  int size;
   msgpack_pack_map(packer, 3);
   pack_event_header(packer, event->event_header.event_type);
-  VALUE hash = event->hash;
-  int size = RHASH_SIZE(hash);
+  hash = event->hash;
+  size = (int)RHASH_SIZE(hash);
   msgpack_pack_int(packer, rbkit_message_field_payload);
   msgpack_pack_map(packer, size);
   rb_hash_foreach(hash, hash_pack_iterator, (VALUE)packer);
 }
 
 static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, msgpack_packer *packer) {
-  rbkit_object_dump *dump = event->dump;
+  size_t objects_in_batch;
+  size_t objects_left;
+  size_t count = 0;
+  size_t i = 0;
+  rbkit_object_dump_page *prev;
+  rbkit_object_data *data;
+  rbkit_object_dump_page * page;
+
   msgpack_pack_map(packer, 5);
   pack_event_header(packer, event->event_header.event_type);
 
@@ -112,13 +120,13 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   
   // dump total number of messages in batch
   msgpack_pack_int(packer, rbkit_message_field_complete_message_count);
-  msgpack_pack_int(packer, event->object_count);
+  msgpack_pack_unsigned_long(packer, event->object_count);
 
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
   // Find the batch size
-  size_t objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
-  int objects_left = event->object_count - event->packed_objects;
+  objects_in_batch = MAX_OBJECT_DUMPS_IN_MESSAGE ;
+  objects_left = event->object_count - event->packed_objects;
   if(objects_left < MAX_OBJECT_DUMPS_IN_MESSAGE)
     objects_in_batch = objects_left;
 
@@ -126,14 +134,10 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
   msgpack_pack_array(packer, objects_in_batch);
 
   // Iterate through all object data
-  int count = 0;
-  int i = 0;
-  rbkit_object_data *data;
-  rbkit_object_dump_page * page;
   while(count < objects_in_batch) {
     if(event->current_page_index == RBKIT_OBJECT_DUMP_PAGE_SIZE) {
       event->current_page_index = 0;
-      rbkit_object_dump_page * prev = event->current_page;
+      prev = event->current_page;
       event->current_page = event->current_page->next;
       free(prev);
     }
@@ -199,11 +203,55 @@ static void pack_object_space_dump_event(rbkit_object_space_dump_event *event, m
     if(data->size == 0)
       msgpack_pack_nil(packer);
     else
-      msgpack_pack_uint32(packer, data->size);
+      msgpack_pack_unsigned_long(packer, data->size);
 
     event->current_page_index++;
     event->packed_objects++;
     count++;
+  }
+}
+
+static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer *packer) {
+  rbkit_cpu_sample *sample;
+  size_t count;
+
+  msgpack_pack_map(packer, 3);
+  sample = event->sample;
+
+  // Keys 1 & 2 - event type and timestamp
+  pack_event_header(packer, event->event_header.event_type);
+
+  // Key 3 : Payload
+  msgpack_pack_int(packer, rbkit_message_field_payload);
+  // Value 3: Array of samples
+  msgpack_pack_array(packer, sample->frame_count);
+
+  for(count = 0; count != sample->frame_count; count++){
+    msgpack_pack_map(packer, 6);
+
+    // method_name
+    msgpack_pack_int(packer, rbkit_message_field_method_name);
+    pack_string(packer, sample->frames[count].method_name);
+
+    // label
+    msgpack_pack_int(packer, rbkit_message_field_label);
+    pack_string(packer, sample->frames[count].label);
+
+    // file
+    msgpack_pack_int(packer, rbkit_message_field_file);
+    pack_string(packer, sample->frames[count].file);
+
+    // line
+    msgpack_pack_int(packer, rbkit_message_field_line);
+    msgpack_pack_unsigned_long(packer, sample->frames[count].line);
+
+    // singleton_method
+    msgpack_pack_int(packer, rbkit_message_field_singleton_method);
+    msgpack_pack_int(packer, sample->frames[count].is_singleton_method);
+
+    // thread_od
+    msgpack_pack_int(packer, rbkit_message_field_thread_id);
+    msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);
   }
 }
 
@@ -249,6 +297,9 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
     case handshake:
       pack_hash_event((rbkit_hash_event *)event_header, packer);
       break;
+    case cpu_sample:
+      pack_cpu_sample_event((rbkit_cpu_sample_event *)event_header, packer);
+      break;
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
       break;
@@ -273,6 +324,10 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("message_counter")), INT2FIX(rbkit_message_field_message_counter));
   rb_hash_aset(events, ID2SYM(rb_intern("correlation_id")), INT2FIX(rbkit_message_field_correlation_id));
   rb_hash_aset(events, ID2SYM(rb_intern("complete_message_count")), INT2FIX(rbkit_message_field_complete_message_count));
+  rb_hash_aset(events, ID2SYM(rb_intern("method_name")), INT2FIX(rbkit_message_field_method_name));
+  rb_hash_aset(events, ID2SYM(rb_intern("label")), INT2FIX(rbkit_message_field_label));
+  rb_hash_aset(events, ID2SYM(rb_intern("singleton_method")), INT2FIX(rbkit_message_field_singleton_method));
+  rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
   OBJ_FREEZE(events);
   return events;
 }

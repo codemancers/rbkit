@@ -9,19 +9,22 @@ rbkit_object_dump_page * rbkit_object_dump_page_new() {
 }
 
 rbkit_object_data * initialize_object_data(rbkit_object_dump *dump) {
+  rbkit_object_data *data;
+  rbkit_object_dump_page *page;
+
   if(dump->first == NULL) {
-    rbkit_object_dump_page *page = rbkit_object_dump_page_new();
+    page = rbkit_object_dump_page_new();
     dump->first = page;
     dump->last = page;
     dump->page_count = 1;
     dump->object_count = 0;
   } else if (dump->last->count == RBKIT_OBJECT_DUMP_PAGE_SIZE) {
-    rbkit_object_dump_page *page = rbkit_object_dump_page_new();
+    page = rbkit_object_dump_page_new();
     dump->last->next = page;
     dump->last = page;
     dump->page_count++;
   }
-  rbkit_object_data *data = &(dump->last->data[dump->last->count]);
+  data = &(dump->last->data[dump->last->count]);
   data->references = NULL;
   data->class_name = NULL;
   data->reference_count = 0;
@@ -53,6 +56,8 @@ static void reachable_object_i(VALUE ref, void *arg)
 }
 
 static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
+  VALUE klass;
+  struct allocation_info *info;
 
   // Get next available slot from page
   rbkit_object_data *data = initialize_object_data(dump);
@@ -60,14 +65,13 @@ static void dump_heap_object(VALUE obj, rbkit_object_dump *dump) {
   data->object_id = FIX2ULONG(rb_obj_id(obj));
 
   //Set classname
-  VALUE klass = RBASIC_CLASS(obj);
+  klass = RBASIC_CLASS(obj);
   data->class_name = rb_class2name(klass);
 
   //Set references
   rb_objspace_reachable_objects_from(obj, reachable_object_i, data);
 
   //Set file path and line no where object is defined
-  struct allocation_info *info;
   if (st_lookup(dump->object_table, obj, (st_data_t *)&info)) {
     if(info) {
       data->file = info->path;

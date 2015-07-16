@@ -1,6 +1,4 @@
 require 'spec_helper'
-require 'support/have_message_matcher'
-require 'msgpack'
 
 describe "Objectspace dump" do
   let(:payload) { Rbkit::MESSAGE_FIELDS[:payload] }
@@ -42,7 +40,7 @@ describe "Objectspace dump" do
     end
   end
   before(:all) do
-    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true)
+    server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: true, enable_cpu_profiling: false)
     @foo_obj_line = __LINE__ + 1
     @foo_obj = Foo.new
     server.send_objectspace_dump

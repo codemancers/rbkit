@@ -1,5 +1,4 @@
 require 'spec_helper'
-require 'msgpack'
 
 describe 'send_hash_as_event' do
   let(:hash) { {'foo' => 'bar', 123 => "hello world"} }
@@ -8,7 +7,7 @@ describe 'send_hash_as_event' do
 
   describe 'when event_type is known' do
     before do
-      server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false)
+      server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false, enable_cpu_profiling: false)
       server.send_hash_as_event(hash, Rbkit::EVENT_TYPES[:gc_stats])
       packed_message = server.get_queued_messages
       @message = MessagePack.unpack packed_message
@@ -22,7 +21,7 @@ describe 'send_hash_as_event' do
 
   describe 'when event_type is not known' do
     it 'should raise NotImplementedError with a meaningful message' do
-      server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false)
+      server = Rbkit.start_profiling(enable_gc_stats: false, enable_object_trace: false, enable_cpu_profiling: false)
       expect { server.send_hash_as_event(hash, 100) }
         .to raise_error(NotImplementedError,
           "Rbkit : Unpacking of event type '100' not implemented")

@@ -3,11 +3,14 @@ module Rbkit
     attr_accessor :pub_port, :request_port, :publish_callback, :respond_callback
 
     def initialize(pub_port, request_port)
-      [pub_port, request_port].each{|port| validate_port_range(port) }
-      @pub_port = pub_port
-      @request_port = request_port
+      @pub_port = pub_port.to_i
+      @request_port = request_port.to_i
+      [@pub_port, @request_port].each{|port| validate_port_range(port) }
       @stop_profiler_thread = false
       @server_running = false
+      @clock_type = :cpu
+      @cpu_profiling_mode = :sampling
+      @cpu_sampling_interval_usec = 1000
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
         send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
@@ -17,13 +20,16 @@ module Rbkit
       end
     end
 
-    def start(enable_object_trace: false, enable_gc_stats: false)
       if @server_running || !start_stat_server(pub_port, request_port, true)
         $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
           " running. Profiling data will not be available."
         return false
       end
       start_stat_tracing if enable_object_trace
+      @cpu_profiling_mode = cpu_profiling_mode if cpu_profiling_mode
+      @clock_type = clock_type if clock_type
+      @cpu_sampling_interval_usec = cpu_sampling_interval_usec if cpu_sampling_interval_usec
+      start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec) if enable_cpu_profiling
       @enable_gc_stats = enable_gc_stats
       @server_running = true
 
@@ -60,6 +66,14 @@ module Rbkit
       when "handshake"
         send_handshake_response
         return # No need of command ack
+      when "use_cpu_time"
+        @clock_type = :cpu
+      when "use_wall_time"
+        @clock_type = :wall
+      when "start_cpu_profiling"
+        start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec)
+      when "stop_cpu_profiling"
+        stop_cpu_profiling
       end
       send_command_ack
     end
@@ -67,9 +81,27 @@ module Rbkit
     def stop
       return false if !@server_running
       @stop_profiler_thread = true
+      stop_cpu_profiling
       stop_stat_server
       @server_running = false
       true
+    end
+
+    def start_cpu_profiling(mode: :sampling, clock_type: :wall, sampling_interval_usec: 1000)
+      @cpu_profiling_mode = mode
+      if mode == :sampling
+        start_sampling_profiler(clock_type, sampling_interval_usec)
+      else
+        # TODO
+      end
+    end
+
+    def stop_cpu_profiling
+      if @cpu_profiling_mode == :sampling
+        stop_sampling_profiler
+      else
+        # TODO
+      end
     end
 
     private
@@ -79,4 +111,3 @@ module Rbkit
     end
   end
 end
-

@@ -1,6 +1,6 @@
 #ifndef RBKIT_MESSAGE_PACKER
 #define RBKIT_MESSAGE_PACKER
-#define RBKIT_PROTOCOL_VERSION "2.0"
+#define RBKIT_PROTOCOL_VERSION "2.1"
 #include "msgpack.h"
 #include "rbkit_event.h"
 
@@ -22,7 +22,11 @@ typedef enum _rbkit_message_fields {
   rbkit_message_field_size,
   rbkit_message_field_message_counter,
   rbkit_message_field_correlation_id,
-  rbkit_message_field_complete_message_count
+  rbkit_message_field_complete_message_count,
+  rbkit_message_field_method_name,
+  rbkit_message_field_label,
+  rbkit_message_field_singleton_method,
+  rbkit_message_field_thread_id
 } rbkit_message_fields;
 
 VALUE rbkit_message_fields_as_hash();

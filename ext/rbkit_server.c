@@ -12,16 +12,8 @@
 #include "rbkit_event_packer.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_message_aggregator.h"
+#include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
-#include <sys/time.h>
-
-static const char *event_names[] = {
-  "gc_start",
-  "gc_end_m",
-  "gc_end_s",
-  "obj_created",
-  "obj_destroyed"
-};
 
 static rbkit_logger *logger;
 static void *zmq_publisher;
@@ -32,10 +24,10 @@ static int test_mode_enabled = 0;
 static VALUE callbacks_enabled = Qfalse;
 
 static rbkit_logger * get_trace_logger(VALUE self) {
-  int i = 0;
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
     logger->enabled = Qfalse;
+    logger->sampling_profiler_enabled = Qfalse;
     logger->newobj_trace = 0;
     logger->freeobj_trace = 0;
     logger->object_table = st_init_numtable();
@@ -76,8 +68,9 @@ static void respond_with_message(VALUE self, char *buf, size_t size) {
 }
 
 static void trigger_publish_callback(void * self) {
+  msgpack_sbuffer *sbuf;
   //Get all aggregated messages as payload of a single event.
-  msgpack_sbuffer * sbuf = msgpack_sbuffer_new();
+  sbuf = msgpack_sbuffer_new();
   get_event_collection_message(sbuf);
   //Send the msgpack array over zmq PUB socket
   if(sbuf && sbuf->size > 0)
@@ -156,6 +149,7 @@ create_gc_hooks(void)
 
 // Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
+  rbkit_obj_created_event *event;
   rbkit_logger * arg = (rbkit_logger *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
@@ -166,7 +160,7 @@ static void newobj_i(VALUE tpval, void *data) {
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
     class_name = rb_class2name(klass);
 
-  rbkit_obj_created_event *event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
+  event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   send_message(arg->self, arg->sbuf);
@@ -175,13 +169,14 @@ static void newobj_i(VALUE tpval, void *data) {
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
 static void freeobj_i(VALUE tpval, void *data) {
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  rbkit_obj_destroyed_event *event;
   VALUE obj = rb_tracearg_object(tparg);
   rbkit_logger *arg = (rbkit_logger *)data;
 
   // Delete allocation info of freed object
   delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
 
-  rbkit_obj_destroyed_event *event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
+  event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
   send_message(arg->self, arg->sbuf);
@@ -191,19 +186,18 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   VALUE pub_port;
   VALUE request_port;
   int bind_result;
+  char zmq_endpoint[21], zmq_request_endpoint[21];
 
   rb_scan_args(argc, argv, "03", &pub_port, &request_port, &callbacks_enabled);
 
-  char zmq_endpoint[14];
-  sprintf(zmq_endpoint, "tcp://*:%d", FIX2INT(pub_port));
+  sprintf(zmq_endpoint, "tcp://127.0.0.1:%d", FIX2INT(pub_port));
   zmq_context = zmq_ctx_new();
   zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
   bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
   if(bind_result != 0)
     return Qfalse;
 
-  char zmq_request_endpoint[14];
-  sprintf(zmq_request_endpoint, "tcp://*:%d", FIX2INT(request_port));
+  sprintf(zmq_request_endpoint, "tcp://127.0.0.1:%d", FIX2INT(request_port));
   zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
   bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
   if(bind_result != 0)
@@ -225,25 +219,29 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
 
 char * tracer_string_recv(void *socket) {
   zmq_msg_t msg;
+  size_t message_size;
+  char *message;
   int rc = zmq_msg_init(&msg);
   assert(rc == 0);
 
   rc = zmq_msg_recv(&msg, socket, 0);
   assert(rc != -1);
-  size_t message_size = zmq_msg_size(&msg);
-  char *message = (char *)malloc(message_size +1);
+  message_size = zmq_msg_size(&msg);
+  message = (char *)malloc(message_size +1);
   memcpy(message, zmq_msg_data(&msg), message_size);
   message[message_size] = 0;
   zmq_msg_close(&msg);
   return message;
 }
 
-static VALUE rbkit_status_as_hash() {
+
+static VALUE rbkit_status_as_hash(VALUE self) {
   VALUE status = rb_hash_new();
   VALUE pid = rb_funcall(rb_path2class("Process"), rb_intern("pid"), 0, 0);
   VALUE processName = rb_funcall(rb_path2class("Process"), rb_intern("argv0"), 0, 0);
   VALUE rbkitModule = rb_define_module("Rbkit");
   int object_trace_enabled = (logger && logger->enabled) ? 1 : 0;
+  int cpu_profiling_enabled = (logger && logger->sampling_profiler_enabled) ? 1 : 0;
 
   rb_hash_aset(status, ID2SYM(rb_intern("rbkit_server_version")), rb_const_get(rbkitModule, rb_intern("VERSION")));
   rb_hash_aset(status, ID2SYM(rb_intern("rbkit_protocol_version")), rbkit_protocol_version());
@@ -251,6 +249,9 @@ static VALUE rbkit_status_as_hash() {
   rb_hash_aset(status, ID2SYM(rb_intern("pwd")), rb_dir_getwd());
   rb_hash_aset(status, ID2SYM(rb_intern("pid")), pid);
   rb_hash_aset(status, ID2SYM(rb_intern("object_trace_enabled")), INT2FIX(object_trace_enabled));
+  rb_hash_aset(status, ID2SYM(rb_intern("cpu_profiling_enabled")), INT2FIX(cpu_profiling_enabled));
+  rb_hash_aset(status, ID2SYM(rb_intern("clock_type")), rb_ivar_get(self, rb_intern("@clock_type")));
+  rb_hash_aset(status, ID2SYM(rb_intern("cpu_profiling_mode")), rb_ivar_get(self, rb_intern("@cpu_profiling_mode")));
   return status;
 }
 
@@ -258,7 +259,7 @@ static VALUE send_handshake_response(VALUE self) {
   msgpack_sbuffer *buffer = msgpack_sbuffer_new();
   msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash());
+  rbkit_hash_event *event = new_rbkit_hash_event(handshake, rbkit_status_as_hash(self));
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
@@ -270,19 +271,16 @@ static VALUE send_handshake_response(VALUE self) {
   return Qnil;
 }
 
-static VALUE poll_for_request() {
+static VALUE poll_for_request(VALUE self) {
+  VALUE command_ruby_string;
+  char *message;
   // Wait for 100 millisecond and check if there is a message
   // we can't wait here indefenitely because ruby is not aware this is a
   // blocking operation. Remember ruby releases GVL in a thread
   // whenever it encounters a known blocking operation.
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
-    char *message = tracer_string_recv(zmq_response_socket);
-    /*if(strcmp(message, "handshake") == 0) {*/
-      /*send_handshake_response();*/
-    /*} else {*/
-      /*tracer_string_send(zmq_response_socket, "ok");*/
-    /*}*/
+    tracer_string_recv(zmq_response_socket);
     VALUE command_ruby_string = rb_str_new_cstr(message);
     free(message);
     return command_ruby_string;
@@ -309,6 +307,38 @@ static VALUE stop_stat_tracing() {
     rb_tracepoint_disable(logger->freeobj_trace);
   }
   logger->enabled = Qfalse;
+  return Qnil;
+}
+
+static void queue_cpu_sample_for_sending(rbkit_cpu_sample *sample) {
+  msgpack_sbuffer* buffer = msgpack_sbuffer_new();
+  msgpack_packer* packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  rbkit_cpu_sample_event *event = new_rbkit_cpu_sample_event(sample);
+
+  pack_event((rbkit_event_header *)event, packer);
+  free(event);
+
+  send_message(buffer);
+  msgpack_sbuffer_free(buffer);
+  msgpack_packer_free(packer);
+}
+
+static VALUE start_sampling_profiler(VALUE self, VALUE clock_type, VALUE interval) {
+  if (logger->sampling_profiler_enabled == Qtrue)
+    return Qnil;
+  if(!SYMBOL_P(clock_type))
+    rb_raise(rb_eArgError, "clock_type should be a symbol, either :wall or :cpu");
+  rbkit_install_sampling_profiler(clock_type == ID2SYM(rb_intern("wall")), FIX2INT(interval), queue_cpu_sample_for_sending);
+  logger->sampling_profiler_enabled = Qtrue;
+  return Qnil;
+}
+
+static VALUE stop_sampling_profiler() {
+  if (logger->sampling_profiler_enabled == Qfalse)
+    return Qnil;
+  rbkit_uninstall_sampling_profiler();
+  logger->sampling_profiler_enabled = Qfalse;
   return Qnil;
 }
 
@@ -348,13 +378,16 @@ static VALUE stop_stat_server() {
 static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   VALUE hash_object;
   VALUE event_type;
+  msgpack_sbuffer *buffer;
+  msgpack_packer *packer;
+  rbkit_hash_event *event;
 
   rb_scan_args(argc, argv, "20", &hash_object, &event_type);
 
-  msgpack_sbuffer *buffer = msgpack_sbuffer_new();
-  msgpack_packer *packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+  buffer = msgpack_sbuffer_new();
+  packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  rbkit_hash_event *event = new_rbkit_hash_event(FIX2INT(event_type), hash_object);
+  event = new_rbkit_hash_event(FIX2INT(event_type), hash_object);
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
@@ -365,11 +398,11 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 }
 
 static VALUE start_stat_tracing() {
+  int i;
   if (logger->enabled == Qtrue)
     return Qnil;
   rb_tracepoint_enable(logger->newobj_trace);
   rb_tracepoint_enable(logger->freeobj_trace);
-  int i = 0;
   for (i=0; i<3; i++) {
     rb_tracepoint_enable(logger->hooks[i]);
   }
@@ -407,17 +440,21 @@ static VALUE enable_test_mode() {
 }
 
 void Init_rbkit_server(void) {
-  VALUE rbkit_module = rb_define_module("Rbkit");
+  VALUE rbkit_module, rbkit_server;
+
+  rbkit_module = rb_define_module("Rbkit");
   rb_define_const(rbkit_module, "EVENT_TYPES", rbkit_event_types_as_hash());
   rb_define_const(rbkit_module, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
   rb_define_const(rbkit_module, "PROTOCOL_VERSION", rbkit_protocol_version());
   rb_define_module_function(rbkit_module, "enable_test_mode", enable_test_mode, 0);
 
-  VALUE rbkit_server = rb_define_class_under(rbkit_module, "Server", rb_cObject);
+  rbkit_server = rb_define_class_under(rbkit_module, "Server", rb_cObject);
   rb_define_method(rbkit_server, "start_stat_server", start_stat_server, -1);
   rb_define_method(rbkit_server, "stop_stat_server", stop_stat_server, 0);
   rb_define_method(rbkit_server, "start_stat_tracing", start_stat_tracing, 0);
   rb_define_method(rbkit_server, "stop_stat_tracing", stop_stat_tracing, 0);
+  rb_define_method(rbkit_server, "start_sampling_profiler", start_sampling_profiler, 2);
+  rb_define_method(rbkit_server, "stop_sampling_profiler", stop_sampling_profiler, 0);
   rb_define_method(rbkit_server, "poll_for_request", poll_for_request, 0);
   rb_define_method(rbkit_server, "send_objectspace_dump", send_objectspace_dump, 0);
   rb_define_method(rbkit_server, "send_hash_as_event", send_hash_as_event, -1);

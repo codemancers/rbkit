@@ -7,8 +7,9 @@ task :compile do
   symlink_bundle_path = File.absolute_path "lib/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
   original_bundle_path = File.absolute_path "ext/rbkit_server.#{RbConfig::MAKEFILE_CONFIG['DLEXT']}"
   Dir.chdir 'ext' do
-    system("#{Gem.ruby} extconf.rb")
-    system("make")
+    if !system("#{Gem.ruby} extconf.rb") || !system("make")
+      fail "Cannot compile rbkit"
+    end
     File.delete(symlink_bundle_path) if File.symlink? symlink_bundle_path
     File.symlink(original_bundle_path, symlink_bundle_path)
   end

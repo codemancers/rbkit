@@ -40,7 +40,7 @@ void message_list_clear() {
 void queue_message(msgpack_sbuffer *buffer) {
   while(!has_enough_space_for(buffer->size))
     double_the_capacity();
-  memcpy(message_array + used_memsize, buffer->data, buffer->size);
+  memcpy((char *)message_array + used_memsize, buffer->data, buffer->size);
   used_memsize += buffer->size;
   no_of_messages += 1;
 }
@@ -48,11 +48,13 @@ void queue_message(msgpack_sbuffer *buffer) {
 // Creates a message containing all the available
 // msgpack sbuffers in the array
 void get_event_collection_message(msgpack_sbuffer *sbuf) {
+  rbkit_event_collection_event *event;
+  msgpack_packer* pk;
   if(no_of_messages == 0)
     return;
 
-  rbkit_event_collection_event *event = new_rbkit_event_collection_event(message_array, used_memsize, no_of_messages);
-  msgpack_packer* pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
+  event = new_rbkit_event_collection_event(message_array, used_memsize, no_of_messages);
+  pk = msgpack_packer_new(sbuf, msgpack_sbuffer_write);
   pack_event((rbkit_event_header *)event, pk);
   free(event);
   msgpack_packer_free(pk);
