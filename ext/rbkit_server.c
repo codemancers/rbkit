@@ -446,6 +446,11 @@ static VALUE enable_test_mode() {
   return Qnil;
 }
 
+static VALUE disable_test_mode() {
+  test_mode_enabled = 0;
+  return Qnil;
+}
+
 void Init_rbkit_server(void) {
   VALUE rbkit_module, rbkit_server;
 
@@ -454,6 +459,7 @@ void Init_rbkit_server(void) {
   rb_define_const(rbkit_module, "MESSAGE_FIELDS", rbkit_message_fields_as_hash());
   rb_define_const(rbkit_module, "PROTOCOL_VERSION", rbkit_protocol_version());
   rb_define_module_function(rbkit_module, "enable_test_mode", enable_test_mode, 0);
+  rb_define_module_function(rbkit_module, "disable_test_mode", disable_test_mode, 0);
 
   rbkit_server = rb_define_class_under(rbkit_module, "Server", rb_cObject);
   rb_define_method(rbkit_server, "start_stat_server", start_stat_server, -1);
