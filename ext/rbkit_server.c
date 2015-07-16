@@ -16,14 +16,14 @@
 #include "rbkit_test_helper.h"
 
 static rbkit_logger *logger;
-static void *zmq_publisher;
-static void *zmq_context;
-static void *zmq_response_socket;
+static void *zmq_publisher = NULL;
+static void *zmq_context = NULL;
+static void *zmq_response_socket = NULL;
 static zmq_pollitem_t items[1];
 static int test_mode_enabled = 0;
-static VALUE callbacks_enabled = Qfalse;
+static VALUE server_instance = Qnil;
 
-static rbkit_logger * get_trace_logger(VALUE self) {
+static rbkit_logger * get_trace_logger() {
   if (logger == 0) {
     logger = ALLOC_N(rbkit_logger, 1);
     logger->enabled = Qfalse;
@@ -36,45 +36,42 @@ static rbkit_logger * get_trace_logger(VALUE self) {
     logger->sbuf = msgpack_sbuffer_new();
     logger->msgpacker = msgpack_packer_new(logger->sbuf, msgpack_sbuffer_write);
     logger->data = 0;
-    logger->self = self;
   }
   return logger;
 }
 
-static void publish_message(VALUE self, char *buf, size_t size) {
+static void publish_message(char *buf, size_t size) {
+  VALUE publish_callback;
+  if(zmq_publisher)
     zmq_send(zmq_publisher, buf, size, 0);
-    if(callbacks_enabled == Qtrue) {
-      fprintf(stderr, "PUB callbacks are enabled\n");
-      VALUE publish_callback = rb_ivar_get(self, rb_intern("@publish_callback"));
-      if (!NIL_P(publish_callback)) {
-        VALUE message = rb_str_new(buf, size);
-        VALUE argv[] = { message };
-        rb_proc_call_with_block(publish_callback, 1, argv, Qnil);
-      }
-    }
+  publish_callback = rb_ivar_get(server_instance, rb_intern("@publish_callback"));
+  if (!rb_obj_is_proc(publish_callback)) {
+    VALUE message = rb_str_new(buf, size);
+    VALUE argv[] = { message };
+    rb_proc_call_with_block(publish_callback, 1, argv, Qnil);
+  }
 }
 
-static void respond_with_message(VALUE self, char *buf, size_t size) {
+static void respond_with_message(char *buf, size_t size) {
+  VALUE respond_callback;
+  if(zmq_response_socket)
     zmq_send(zmq_response_socket, buf, size, 0);
-    if(callbacks_enabled == Qtrue) {
-      fprintf(stderr, "REP callbacks are enabled\n");
-      VALUE respond_callback = rb_ivar_get(self, rb_intern("@respond_callback"));
-      if (!NIL_P(respond_callback)) {
-        VALUE message = rb_str_new(buf, size);
-        VALUE argv[] = { message };
-        rb_proc_call_with_block(respond_callback, 1, argv, Qnil);
-      }
-    }
+  respond_callback = rb_ivar_get(server_instance, rb_intern("@respond_callback"));
+  if (!rb_obj_is_proc(respond_callback)) {
+    VALUE message = rb_str_new(buf, size);
+    VALUE argv[] = { message };
+    rb_proc_call_with_block(respond_callback, 1, argv, Qnil);
+  }
 }
 
-static void trigger_publish_callback(void * self) {
+static void trigger_publish_callback() {
   msgpack_sbuffer *sbuf;
   //Get all aggregated messages as payload of a single event.
   sbuf = msgpack_sbuffer_new();
   get_event_collection_message(sbuf);
-  //Send the msgpack array over zmq PUB socket
+  //Send the msgpack array over PUB socket
   if(sbuf && sbuf->size > 0)
-    publish_message((VALUE)self, sbuf->data, sbuf->size);
+    publish_message(sbuf->data, sbuf->size);
   // Clear the aggregated messages
   message_list_clear();
   msgpack_sbuffer_free(sbuf);
@@ -84,20 +81,20 @@ static void trigger_publish_callback(void * self) {
  * Creates a msgpack array which contains all the messages packed after
  * the last time send_messages() was called, and sends it over the PUB socket.
  */
-static VALUE send_messages(VALUE self) {
+static VALUE send_messages() {
   if(test_mode_enabled)
     return Qnil; //NOOP
 
-  rb_postponed_job_register(0, trigger_publish_callback, (void *)self);
+  rb_postponed_job_register(0, trigger_publish_callback, (void *)server_instance);
   return Qnil;
 }
 
 // Adds the message to the queue and sends the queued messages if
 // the queue becomes full.
-static void send_message(VALUE self, msgpack_sbuffer *buffer) {
+static void send_message(msgpack_sbuffer *buffer) {
   queue_message(buffer);
   if(queued_message_count() == MESSAGE_BATCH_SIZE)
-    send_messages(self);
+    send_messages();
 }
 
 static void
@@ -108,7 +105,7 @@ gc_start_i(VALUE tpval, void *data)
   event->event_type = gc_start;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->self, arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -119,7 +116,7 @@ gc_end_mark_i(VALUE tpval, void *data)
   event->event_type = gc_end_m;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->self, arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -130,7 +127,7 @@ gc_end_sweep_i(VALUE tpval, void *data)
   event->event_type = gc_end_s;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->self, arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static void
@@ -163,7 +160,7 @@ static void newobj_i(VALUE tpval, void *data) {
   event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  send_message(arg->self, arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
@@ -179,41 +176,51 @@ static void freeobj_i(VALUE tpval, void *data) {
   event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
   pack_event((rbkit_event_header *)event, arg->msgpacker);
   free(event);
-  send_message(arg->self, arg->sbuf);
+  send_message(arg->sbuf);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   VALUE pub_port;
   VALUE request_port;
-  int bind_result;
+  int bind_result, pub_port_int, req_port_int;
   char zmq_endpoint[21], zmq_request_endpoint[21];
+  server_instance = self;
 
-  rb_scan_args(argc, argv, "03", &pub_port, &request_port, &callbacks_enabled);
+  rb_scan_args(argc, argv, "02", &pub_port, &request_port);
+  pub_port_int = FIX2INT(pub_port);
+  req_port_int = FIX2INT(request_port);
+  if(pub_port_int != 0 || request_port != 0) {
+    zmq_context = zmq_ctx_new();
+  }
 
-  sprintf(zmq_endpoint, "tcp://127.0.0.1:%d", FIX2INT(pub_port));
-  zmq_context = zmq_ctx_new();
-  zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
-  bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
-  if(bind_result != 0)
-    return Qfalse;
+  if(pub_port_int != 0) {
+    sprintf(zmq_endpoint, "tcp://127.0.0.1:%d", FIX2INT(pub_port));
+    zmq_publisher = zmq_socket(zmq_context, ZMQ_PUB);
+    bind_result = zmq_bind(zmq_publisher, zmq_endpoint);
+    if(bind_result != 0)
+      return Qfalse;
+  }
 
-  sprintf(zmq_request_endpoint, "tcp://127.0.0.1:%d", FIX2INT(request_port));
-  zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
-  bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
-  if(bind_result != 0)
-    return Qfalse;
+  if(req_port_int != 0) {
+    sprintf(zmq_request_endpoint, "tcp://127.0.0.1:%d", FIX2INT(request_port));
+    zmq_response_socket = zmq_socket(zmq_context, ZMQ_REP);
+    bind_result = zmq_bind(zmq_response_socket, zmq_request_endpoint);
+    if(bind_result != 0)
+      return Qfalse;
+
+    items[0].socket = zmq_response_socket;
+    items[0].events = ZMQ_POLLIN;
+  }
 
   // Creates a list which aggregates messages
   message_list_new();
-  logger = get_trace_logger(self);
+  logger = get_trace_logger();
   logger->newobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_NEWOBJ, newobj_i, logger);
   logger->freeobj_trace = rb_tracepoint_new(0, RUBY_INTERNAL_EVENT_FREEOBJ, freeobj_i, logger);
   rb_gc_register_mark_object(logger->newobj_trace);
   rb_gc_register_mark_object(logger->freeobj_trace);
   create_gc_hooks();
 
-  items[0].socket = zmq_response_socket;
-  items[0].events = ZMQ_POLLIN;
   return Qtrue;
 }
 
@@ -264,7 +271,7 @@ static VALUE send_handshake_response(VALUE self) {
   free(event);
 
   if(buffer && buffer->size > 0)
-    respond_with_message(self, buffer->data, buffer->size);
+    respond_with_message(buffer->data, buffer->size);
 
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
@@ -273,15 +280,15 @@ static VALUE send_handshake_response(VALUE self) {
 
 static VALUE poll_for_request(VALUE self) {
   VALUE command_ruby_string;
-  char *message;
+  char *message = NULL;
   // Wait for 100 millisecond and check if there is a message
   // we can't wait here indefenitely because ruby is not aware this is a
   // blocking operation. Remember ruby releases GVL in a thread
   // whenever it encounters a known blocking operation.
   zmq_poll(items, 1, 100);
   if (items[0].revents && ZMQ_POLLIN) {
-    tracer_string_recv(zmq_response_socket);
-    VALUE command_ruby_string = rb_str_new_cstr(message);
+    message = tracer_string_recv(zmq_response_socket);
+    command_ruby_string = rb_str_new_cstr(message);
     free(message);
     return command_ruby_string;
   } else {
@@ -290,8 +297,8 @@ static VALUE poll_for_request(VALUE self) {
 }
 
 static VALUE send_command_ack(VALUE self) {
-  char *response = "ok";
-  respond_with_message(self, response, strlen(response));
+  char *response = (char *)"ok";
+  respond_with_message(response, strlen(response));
   return Qnil;
 }
 
@@ -391,7 +398,7 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
-  send_message(self, buffer);
+  send_message(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
   return Qnil;
@@ -422,7 +429,7 @@ static VALUE send_objectspace_dump(VALUE self) {
   // until we've packed all objects.
   while(event->packed_objects < event->object_count) {
     pack_event((rbkit_event_header *)event, pk);
-    send_message(self, buffer);
+    send_message(buffer);
   }
 
   free(event->current_page);

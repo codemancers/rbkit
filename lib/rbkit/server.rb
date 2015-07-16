@@ -11,6 +11,8 @@ module Rbkit
       @clock_type = :cpu
       @cpu_profiling_mode = :sampling
       @cpu_sampling_interval_usec = 1000
+      @respond_callback = nil
+      @publish_callback = nil
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
         send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
@@ -20,7 +22,9 @@ module Rbkit
       end
     end
 
-      if @server_running || !start_stat_server(pub_port, request_port, true)
+    def start(enable_object_trace: false, enable_gc_stats: false,
+              enable_cpu_profiling: false, clock_type: nil, cpu_profiling_mode: nil, cpu_sampling_interval_usec: nil)
+      if @server_running || !start_stat_server(pub_port, request_port)
         $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
           " running. Profiling data will not be available."
         return false
@@ -37,8 +41,10 @@ module Rbkit
       Thread.new do
         loop do
           break if @stop_profiler_thread
-          incoming_request = poll_for_request
-          process_incoming_request(incoming_request) unless String(incoming_request).empty?
+          unless request_port.zero?
+            incoming_request = poll_for_request
+            process_incoming_request(incoming_request) unless String(incoming_request).empty?
+          end
           @gc_stats_timer.run if @enable_gc_stats
           @message_dispatch_timer.run
           # Let us sleep this thread for a bit, so as other things can run.
@@ -107,6 +113,7 @@ module Rbkit
     private
 
     def validate_port_range(port)
+      return if port.zero? # Port will be zero when nil is passed to disable zmq io
       raise ArgumentError, 'Invalid port value' unless (1024..65000).include?(port)
     end
   end
