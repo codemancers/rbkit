@@ -11,6 +11,13 @@ server = Rbkit.start_server
 
 server.respond_callback = -> (message) { .. do what you want with response messages .. }
 server.publish_callback = -> (message) { .. do what you want with messages containing profiling data .. }
+
+server.process_incoming_request('handshake')
+# Above triggers respond_callback with handshake response
+
+server.process_incoming_request('objectspace_snapshot')
+# Above triggers respond_callback with "ok" and
+# publish_callback with MessagePacked data containing the objectspace dump when it's ready
 ```
 
 Checkout how [Rbkit::Websocket](https://github.com/code-mancers/rbkit-websocket/blob/master/lib/rbkit/websocket.rb#L42-L48)
