@@ -12,6 +12,7 @@ module Rbkit
       @clock_type = :cpu
       @cpu_profiling_mode = :sampling
       @cpu_sampling_interval_usec = 1000
+      @cpu_sampling_depth = 10
       @gc_stats_timer = Rbkit::Timer.new(5) do
         data = RbkitGC.stat
         send_hash_as_event(data, Rbkit::EVENT_TYPES[:gc_stats])
@@ -22,7 +23,7 @@ module Rbkit
     end
 
     def start(enable_object_trace: false, enable_gc_stats: false,
-              enable_cpu_profiling: false, clock_type: nil, cpu_profiling_mode: nil, cpu_sampling_interval_usec: nil)
+              enable_cpu_profiling: false, clock_type: nil, cpu_profiling_mode: nil, cpu_sampling_interval_usec: nil, cpu_sampling_depth: nil)
       if @server_running || !start_stat_server(pub_port, request_port)
         $stderr.puts "Rbkit server couldn't bind to socket, check if it is already" \
           " running. Profiling data will not be available."
@@ -32,7 +33,8 @@ module Rbkit
       @cpu_profiling_mode = cpu_profiling_mode if cpu_profiling_mode
       @clock_type = clock_type if clock_type
       @cpu_sampling_interval_usec = cpu_sampling_interval_usec if cpu_sampling_interval_usec
-      start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec) if enable_cpu_profiling
+      @cpu_sampling_depth = cpu_sampling_depth if cpu_sampling_depth
+      start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec, sampling_depth: @cpu_sampling_depth) if enable_cpu_profiling
       @enable_gc_stats = enable_gc_stats
       @server_running = true
       @profiler_thread = Thread.new do
@@ -67,7 +69,7 @@ module Rbkit
       when "use_wall_time"
         @clock_type = :wall
       when "start_cpu_profiling"
-        start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec)
+        start_cpu_profiling(clock_type: @clock_type, sampling_interval_usec: @cpu_sampling_interval_usec, sampling_depth: @cpu_sampling_depth)
       when "stop_cpu_profiling"
         stop_cpu_profiling
       end
@@ -82,10 +84,10 @@ module Rbkit
       true
     end
 
-    def start_cpu_profiling(mode: :sampling, clock_type: :wall, sampling_interval_usec: 1000)
+    def start_cpu_profiling(mode: :sampling, clock_type: :wall, sampling_interval_usec: 1000, sampling_depth: 10)
       @cpu_profiling_mode = mode
       if mode == :sampling
-        start_sampling_profiler(clock_type, sampling_interval_usec)
+        start_sampling_profiler(clock_type, sampling_interval_usec, sampling_depth)
       else
         # TODO
       end

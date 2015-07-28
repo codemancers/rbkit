@@ -11,6 +11,7 @@
 
 static int signal_type;
 static int clock_type;
+static int sampling_depth;
 queue_sample_func_ptr queue_cpu_sample_for_sending;
 
 #ifdef RBKIT_DEV
@@ -30,7 +31,9 @@ static void sampling_job_handler(void *data_unused) {
 
   rbkit_cpu_sample *sample = malloc(sizeof(rbkit_cpu_sample));
 
-  int collected_size = rb_profile_frames(start, sizeof(buff) / sizeof(VALUE), buff, lines);
+  int max_depth = sizeof(buff) / sizeof(VALUE);
+  int depth = (sampling_depth > max_depth) ? max_depth : sampling_depth;
+  int collected_size = rb_profile_frames(start, depth, buff, lines);
   rbkit_frame_data *frame_data = malloc(sizeof(rbkit_frame_data) * collected_size);
   sample->frames = frame_data;
   sample->frame_count = collected_size;
@@ -118,8 +121,9 @@ static void stop_sigprof_timer() {
   setitimer(clock_type, &timer, 0);
 }
 
-void rbkit_install_sampling_profiler(int wall_time, int interval, queue_sample_func_ptr func) {
+void rbkit_install_sampling_profiler(int wall_time, int interval, int depth, queue_sample_func_ptr func) {
   queue_cpu_sample_for_sending = func;
+  sampling_depth = depth;
   if(wall_time) {
     signal_type = SIGALRM;
     clock_type = ITIMER_REAL;
