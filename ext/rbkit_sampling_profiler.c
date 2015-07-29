@@ -9,9 +9,11 @@
 
 #define BUF_SIZE 2048
 
-static int signal_type;
-static int clock_type;
-static int sampling_depth;
+static struct cpu_sampling_args {
+  int signal_type;
+  int clock_type;
+  int sampling_depth;
+} args;
 queue_sample_func_ptr queue_cpu_sample_for_sending;
 
 #ifdef RBKIT_DEV
@@ -32,7 +34,7 @@ static void sampling_job_handler(void *data_unused) {
   rbkit_cpu_sample *sample = malloc(sizeof(rbkit_cpu_sample));
 
   int max_depth = sizeof(buff) / sizeof(VALUE);
-  int depth = (sampling_depth > max_depth) ? max_depth : sampling_depth;
+  int depth = (args.sampling_depth > max_depth) ? max_depth : args.sampling_depth;
   int collected_size = rb_profile_frames(start, depth, buff, lines);
   rbkit_frame_data *frame_data = malloc(sizeof(rbkit_frame_data) * collected_size);
   sample->frames = frame_data;
@@ -92,7 +94,7 @@ static void install_signal_handler() {
   sa.sa_sigaction = signal_handler;
   sa.sa_flags = SA_RESTART | SA_SIGINFO;
   sigemptyset(&sa.sa_mask);
-  sigaction(signal_type, &sa, NULL);
+  sigaction(args.signal_type, &sa, NULL);
 }
 
 static void uninstall_signal_handler() {
@@ -100,7 +102,7 @@ static void uninstall_signal_handler() {
   sa.sa_handler = SIG_IGN;
   sa.sa_flags = SA_RESTART;
   sigemptyset(&sa.sa_mask);
-  sigaction(signal_type, &sa, NULL);
+  sigaction(args.signal_type, &sa, NULL);
 #ifdef RBKIT_DEV
   fprintf(stderr, "Time spent in CPU sampling in usecs = %f(wall) %f(cpu)\n", total_wall_time_spent_in_sampling, total_cpu_time_spent_in_sampling);
 #endif
@@ -112,24 +114,24 @@ static void start_sigprof_timer(int interval) {
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = interval;
   timer.it_value = timer.it_interval;
-  setitimer(clock_type, &timer, 0);
+  setitimer(args.clock_type, &timer, 0);
 }
 
 static void stop_sigprof_timer() {
   struct itimerval timer;
   memset(&timer, 0, sizeof(timer));
-  setitimer(clock_type, &timer, 0);
+  setitimer(args.clock_type, &timer, 0);
 }
 
 void rbkit_install_sampling_profiler(int wall_time, int interval, int depth, queue_sample_func_ptr func) {
   queue_cpu_sample_for_sending = func;
-  sampling_depth = depth;
+  args.sampling_depth = depth;
   if(wall_time) {
-    signal_type = SIGALRM;
-    clock_type = ITIMER_REAL;
+    args.signal_type = SIGALRM;
+    args.clock_type = ITIMER_REAL;
   } else {
-    signal_type = SIGPROF;
-    clock_type = ITIMER_PROF;
+    args.signal_type = SIGPROF;
+    args.clock_type = ITIMER_PROF;
   }
   install_signal_handler();
   start_sigprof_timer(interval);
