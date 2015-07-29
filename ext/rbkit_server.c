@@ -383,6 +383,14 @@ static VALUE stop_stat_server() {
 }
 
 static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
+  /*
+   * Check if the server connection is available before trying to pack GC stat
+   * information into msgpack buffers. By checking if the logger variable is
+   * initiated or not, we achieve this. If the server has been stopped, we free
+   * the logger pointer and set it to 0. Refer to `stop_stat_server` method.
+   */
+  if(logger == 0)
+    return Qfalse;
   VALUE hash_object;
   VALUE event_type;
   msgpack_sbuffer *buffer;
