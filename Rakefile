@@ -16,12 +16,18 @@ task :compile do
 end
 
 desc "Run each spec in isolated process"
-task :run_spec => [:compile] do
+task :run_specs_in_separate_processes => [:compile] do
   command_output = []
+  threads = []
+  pub_port = 6666
+  req_port = 8888
   Dir["spec/*_spec.rb"].each do |file|
-    puts "Running #{file}.."
-    command_output << system("bundle exec rspec #{file}")
+    threads << Thread.new(pub_port+=1, req_port+=1) do |pub_port, req_port|
+      puts "Running #{file}.."
+      command_output << system("RBKIT_PUB_PORT=#{pub_port} RBKIT_REQ_PORT=#{req_port} bundle exec rspec #{file}")
+    end
   end
+  threads.each(&:join)
   if command_output.all?
     exit(0)
   else
@@ -29,4 +35,4 @@ task :run_spec => [:compile] do
   end
 end
 
-task :default => [:compile, :spec]
+task :default => [:run_specs_in_separate_processes]
