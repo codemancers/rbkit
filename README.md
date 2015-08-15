@@ -190,7 +190,7 @@ make
 #### Run the tests
 
 ```
-bundle exec rake run_spec
+bundle exec rake
 ```
 
 ## TODO
