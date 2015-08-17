@@ -189,6 +189,12 @@ make
 # (in order to use `rbkit` gem in Gemfiles using `path` option)
 ```
 
+#### Run the tests
+
+```
+bundle exec rake
+```
+
 ## TODO
 
 TODOs are tracked as github issues.

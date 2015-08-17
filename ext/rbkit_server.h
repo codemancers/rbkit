@@ -23,6 +23,5 @@ typedef struct _rbkit_logger {
 } rbkit_logger;
 
 char * tracer_string_recv(void *socket);
-int tracer_string_send(void *socket, const char *message);
 
 #endif

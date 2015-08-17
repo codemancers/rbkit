@@ -35,8 +35,9 @@ Thread.new do
     commands.each_with_index do |c, i|
       puts "#{i+1}. #{c}"
     end
-    command = commands[gets.strip.to_i - 1] rescue ''
-    unless command.empty?
+    num_input = gets.strip.to_i
+    if num_input.between?(1, commands.length + 1)
+      command = commands[num_input - 1]
       request_socket.send(command)
       puts "sent #{command}"
       response = request_socket.recv()
