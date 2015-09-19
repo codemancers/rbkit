@@ -71,7 +71,6 @@ static void pack_value_object(msgpack_packer *packer, VALUE value) {
       msgpack_pack_double(packer, rb_num2dbl(value));
       break;
     default:
-      ;
       rubyString = rb_funcall(value, rb_intern("to_s"), 0, 0);
       keyString = StringValueCStr(rubyString);
       pack_string(packer, keyString);
