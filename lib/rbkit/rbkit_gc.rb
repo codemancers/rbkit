@@ -18,13 +18,15 @@ module Rbkit
     #   [heap_final_slots] Count of zombie objects
     #   [heap_swept_slots] Count of slots swept after last GC
     #   [old_objects] Count of old generation objects
-    #   [old_objects_limit] Old generation object count after which GC is triggered
+    #   [old_objects_limit] Old generation object count after which major GC is triggered
     #   [total_allocated_objects] Number of created objects in the lifetime of the process
     #   [total_freed_objects] Number of freed objects in the lifetime of the process
     #   [malloc_increase_bytes] Malloc'ed bytes since last GC
     #   [malloc_increase_bytes_limit] Minor GC is triggered when malloc_increase_bytes exceeds this value
     #   [oldmalloc_increase_bytes] Malloc'ed bytes for old objects since last major GC
     #   [oldmalloc_increase_bytes_limit] Major GC is triggered with oldmalloc_increase_bytes exceeds this value
+    #   [remembered_wb_unprotected_objects] Count of objects on ruby heap created by C extensions which don't have write protection aka Shady objects
+    #   [remembered_wb_unprotected_objects_limit] Max no of shady objects after which major GC will be triggered
     #   [total_heap_size] heap_allocated_pages * max slots per page * size of one slot
     #   [total_memsize] ObjectSpace.memsize_of_all
     def self.stat
@@ -43,7 +45,8 @@ module Rbkit
           :old_objects, :old_objects_limit, :total_allocated_objects,
           :total_freed_objects, :malloc_increase_bytes,
           :malloc_increase_bytes_limit, :oldmalloc_increase_bytes,
-          :oldmalloc_increase_bytes_limit
+          :oldmalloc_increase_bytes_limit, :remembered_wb_unprotected_objects,
+          :remembered_wb_unprotected_objects_limit
         ].each do |key|
           stats[key] = data[key]
         end
@@ -65,6 +68,8 @@ module Rbkit
         stats[:malloc_increase_bytes_limit] = data[:malloc_limit]
         stats[:oldmalloc_increase_bytes] = data[:oldmalloc_increase]
         stats[:oldmalloc_increase_bytes_limit] = data[:oldmalloc_limit]
+        stats[:remembered_wb_unprotected_objects] = data[:remembered_shady_object]
+        stats[:remembered_wb_unprotected_objects_limit] = data[:remembered_shady_object_limit]
       end
 
       no_of_allocated_pages = stats[:heap_allocated_pages] rescue 0
