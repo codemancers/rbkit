@@ -1,7 +1,7 @@
 $:<< File.join(File.dirname(__FILE__), "../lib")
 $:<< File.join(File.dirname(__FILE__), "../ext")
 
-require 'benchmark'
+require 'benchmark/ips'
 require 'rbkit'
 
 
@@ -12,7 +12,7 @@ def do_stuff
   end
 end
 
-Benchmark.bm do |bm|
+Benchmark.ips do |bm|
   bm.report('Running code without Rbkit :') do
     do_stuff
   end
@@ -34,4 +34,6 @@ Benchmark.bm do |bm|
   bm.report('Running code after disabling rbkit :') do
     do_stuff
   end
+
+  bm.compare!
 end
