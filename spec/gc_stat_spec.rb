@@ -24,6 +24,8 @@ describe 'gc_stat' do
         :malloc_increase_bytes_limit,
         :oldmalloc_increase_bytes,
         :oldmalloc_increase_bytes_limit,
+        :remembered_wb_unprotected_objects,
+        :remembered_wb_unprotected_objects_limit,
         :total_heap_size,
         :total_memsize ]
   end

@@ -244,11 +244,28 @@ about each frame in the call stack. Some examples:
   event_type: "gc_stats",
   timestamp: <timestamp in milliseconds>,
   payload: {
-     count:
-     heap_user:
-     heap_length:
-     heap_increment:
-     ...
+    count: # Count of major and minor GCs so far
+    minor_gc_count: # Count of minor GCs
+    major_gc_count: # Count of major GCs
+    heap_allocated_pages: # Count of allocated pages (heap_eden_pages + heap_tomb_pages)
+    heap_eden_pages: # Count of pages which has atleast one live object
+    heap_tomb_pages: # Count of pages which don't have any object yet
+    heap_allocatable_pages: # Count of pages that will be allocated if Ruby runs out of heap
+    heap_sorted_length: # Count of total number of sorted pages (>= heap_allocated_pages + heap_allocatable_pages)
+    heap_live_slots: # Count of slots in all pages having live objects
+    heap_free_slots: # Count of free slots in all pages
+    heap_final_slots: # Count of zombie objects
+    heap_swept_slots: # Count of slots swept after last GC
+    old_objects: # Count of old generation objects
+    old_objects_limit: # Old generation object count after which GC is triggered
+    total_allocated_objects: # Number of created objects in the lifetime of the process
+    total_freed_objects: # Number of freed objects in the lifetime of the process
+    malloc_increase_bytes: # Malloc'ed bytes since last GC
+    malloc_increase_bytes_limit: # Minor GC is triggered when malloc_increase_bytes exceeds this value
+    oldmalloc_increase_bytes: # Malloc'ed bytes for old objects since last major GC
+    oldmalloc_increase_bytes_limit: # Major GC is triggered with oldmalloc_increase_bytes exceeds this value
+    total_heap_size: # heap_allocated_pages * max slots per page * size of one slot
+    total_memsize: # ObjectSpace.memsize_of_all
   }
 }
 ```
