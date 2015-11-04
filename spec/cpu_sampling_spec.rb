@@ -169,15 +169,7 @@ describe 'CPU Sampling' do
     end
   end
 
-  describe 'another test' do
-    let(:clock_type) { :cpu }
-    let(:operation) { lambda{ io_intensive_operation; cpu_intensive_operation; } }
-
-    it 'just runs the before block' do
-    end
-  end
-
-  pending 'when stack depth is specified' do
+  describe 'when stack depth is specified' do
     let(:stack_depth) { 2 }
     let(:clock_type) { :wall }
     let(:operation) { lambda{ io_intensive_operation } }
