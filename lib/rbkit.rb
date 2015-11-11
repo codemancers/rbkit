@@ -3,15 +3,12 @@ require "rbkit_server"
 require "rbkit/timer"
 require "rbkit/rbkit_gc"
 require "rbkit/server"
-#require "objspace"
 
-# Class implements user friendly interface in pure Ruby for profiler.
 module Rbkit
   DEFAULT_PUB_PORT = ENV['RBKIT_PUB_PORT'] || 5555
   DEFAULT_REQ_PORT = ENV['RBKIT_REQ_PORT'] || 5556
 
-
-  ########### Rbkit API ###########
+  ########### Rbkit Server API ###########
 
   # Starts the Rbkit server and waits for a client to connect and issue
   # commands to the request_port, until then there's zero performance overhead.
@@ -54,5 +51,21 @@ module Rbkit
 
   def self.server
     @server
+  end
+
+  # Block form that sends profiling data to Rbkit client running on localhost
+  def self.profile(options = {}, &block)
+    profiling_options = {}
+      #enable_object_trace: false,
+      #enable_gc_stats: false,
+      #enable_cpu_profiling: false
+    #}
+    if options[:memory]
+      profiling_options[:enable_object_trace] = true
+    end
+    server = Rbkit::Server.new(DEFAULT_PUB_PORT, DEFAULT_REQ_PORT) #Rbkit.start_profiling(profiling_options)
+    server.start(profiling_options)
+    yield
+    server.stop
   end
 end

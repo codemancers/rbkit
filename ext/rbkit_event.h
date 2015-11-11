@@ -3,6 +3,7 @@
 #include "rbkit_allocation_info.h"
 #include "rbkit_object_graph.h"
 #include "rbkit_sampling_profiler.h"
+#include "rbkit_object_tracer.h"
 
 typedef enum _event_type {
   obj_created,
@@ -14,7 +15,8 @@ typedef enum _event_type {
   gc_stats,
   event_collection,
   handshake,
-  cpu_sample
+  cpu_sample,
+  new_objects
 } rbkit_event_type;
 
 VALUE rbkit_event_types_as_hash();
@@ -27,10 +29,18 @@ typedef struct _rbkit_obj_created_event {
   rbkit_event_header event_header;
   unsigned long long object_id;
   const char *klass;
+  size_t size;
   rbkit_allocation_info *allocation_info;
 } rbkit_obj_created_event;
 
-rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long long object_id, const char *klass, rbkit_allocation_info *info);
+rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long long object_id, const char *klass, size_t size, rbkit_allocation_info *info);
+
+typedef struct _rbkit_obj_allocations_event {
+  rbkit_event_header event_header;
+  rbkit_object_allocation_infos *infos;
+} rbkit_object_allocations_event;
+
+rbkit_object_allocations_event *new_rbkit_object_allocations_event(rbkit_object_allocation_infos *infos);
 
 typedef struct _rbkit_obj_destroyed_event {
   rbkit_event_header event_header;

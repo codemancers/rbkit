@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/time.h>
 #include "rbkit_time_helper.h"
+#include "rbkit_stack_trace.h"
 
 #define BUF_SIZE 2048
 
@@ -20,51 +21,14 @@ static double total_cpu_time_spent_in_sampling;
 
 
 static void sampling_job_handler(void *data_unused) {
-  int start = 0;
-  int lines[BUF_SIZE];
-  VALUE buff[BUF_SIZE];
-  VALUE rb_method_name, rb_label, rb_file, rb_singleton_method;
-  int i, is_singleton;
-  char *method_name, *label, *file;
-  unsigned long line, thread_id;
-
   rbkit_cpu_sample *sample = malloc(sizeof(rbkit_cpu_sample));
+  rbkit_stack_trace *stacktrace = malloc(sizeof(rbkit_stack_trace));
 
-  int collected_size = rb_profile_frames(start, sizeof(buff) / sizeof(VALUE), buff, lines);
-  rbkit_frame_data *frame_data = malloc(sizeof(rbkit_frame_data) * collected_size);
-  sample->frames = frame_data;
-  sample->frame_count = collected_size;
-  for (i=0; i<collected_size; i++) {
-    rb_method_name = rb_profile_frame_method_name(buff[i]);
-    if(NIL_P(rb_method_name)) {
-      method_name = NULL;
-    } else {
-      method_name = StringValueCStr(rb_method_name);
-    }
-    frame_data[i].method_name = method_name;
-
-    rb_label = rb_profile_frame_full_label(buff[i]);
-    label = StringValueCStr(rb_label);
-    frame_data[i].label = label;
-
-    rb_file = rb_profile_frame_absolute_path(buff[i]);
-    if(NIL_P(rb_file))
-      rb_file = rb_profile_frame_path(buff[i]);
-    file = StringValueCStr(rb_file);
-    frame_data[i].file = file;
-
-    line = FIX2ULONG(rb_profile_frame_first_lineno(buff[i]));
-    frame_data[i].line = line;
-
-    rb_singleton_method = rb_profile_frame_singleton_method_p(buff[i]);
-    is_singleton = rb_singleton_method == Qtrue;
-    frame_data[i].is_singleton_method = is_singleton;
-
-    thread_id = FIX2ULONG(rb_obj_id(rb_thread_current()));
-    frame_data[i].thread_id = thread_id;
-  }
+  collect_stack_trace(stacktrace);
+  sample->frames = stacktrace->frames;
+  sample->frame_count = stacktrace->frame_count;
   queue_cpu_sample_for_sending(sample);
-  free(frame_data);
+  delete_stack_trace(stacktrace);
   free(sample);
 }
 

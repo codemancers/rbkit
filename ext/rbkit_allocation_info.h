@@ -2,6 +2,7 @@
 #define RBKIT_ALLOCATION_INFO
 #include <ruby.h>
 #include "ruby/debug.h"
+#include "rbkit_stack_trace.h"
 
 typedef struct _rbkit_allocation_info {
   const char *path;
@@ -10,6 +11,14 @@ typedef struct _rbkit_allocation_info {
   VALUE method_id;
   size_t generation;
 } rbkit_allocation_info;
+
+typedef struct _rbkit_object_allocation {
+  unsigned long long object_id;
+  const char *klass;
+  const char *file;
+  unsigned long line;
+  rbkit_stack_trace *stacktrace;
+} rbkit_object_allocation;
 
 rbkit_allocation_info * new_rbkit_allocation_info(rb_trace_arg_t *tparg, st_table *str_table, st_table *object_table);
 void delete_rbkit_allocation_info(rb_trace_arg_t *tparg, VALUE obj, st_table *str_table, st_table *object_table);

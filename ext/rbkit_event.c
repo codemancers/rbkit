@@ -19,7 +19,7 @@ VALUE rbkit_event_types_as_hash() {
 }
 
 rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long long object_id,
-    const char *klass, rbkit_allocation_info *info) {
+    const char *klass, size_t size, rbkit_allocation_info *info) {
   rbkit_obj_created_event *event = malloc(sizeof(rbkit_obj_created_event));
 
   rbkit_event_header *header = (rbkit_event_header *)event;
@@ -27,7 +27,18 @@ rbkit_obj_created_event *new_rbkit_obj_created_event(unsigned long long object_i
 
   event->object_id = object_id;
   event->klass = klass;
+  event->size = size;
   event->allocation_info = info;
+  return event;
+}
+
+rbkit_object_allocations_event *new_rbkit_object_allocations_event(rbkit_object_allocation_infos *infos) {
+  rbkit_object_allocations_event *event = malloc(sizeof(rbkit_object_allocations_event));
+
+  rbkit_event_header *header = (rbkit_event_header *)event;
+  header->event_type = new_objects;
+
+  event->infos = infos;
   return event;
 }
 

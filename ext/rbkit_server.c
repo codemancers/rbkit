@@ -14,6 +14,7 @@
 #include "rbkit_message_aggregator.h"
 #include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
+#include "rbkit_object_tracer.h"
 
 static rbkit_logger *logger;
 static void *zmq_publisher = NULL;
@@ -146,21 +147,35 @@ create_gc_hooks(void)
 
 // Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
-  rbkit_obj_created_event *event;
+  rbkit_object_allocations_event *event;
   rbkit_logger * arg = (rbkit_logger *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
-  rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
-
   VALUE obj = rb_tracearg_object(tparg);
-  VALUE klass = RBASIC_CLASS(obj);
-  const char *class_name = NULL;
-  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
-    class_name = rb_class2name(klass);
+  rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
+  rbkit_new_object_info *obj_info = malloc(sizeof(rbkit_new_object_info));
+  VALUE klass;
+  obj_info->file = info->path;
+  obj_info->line = info->line;
+  obj_info->object_id = FIX2ULONG(rb_obj_id(obj));
+  klass = RBASIC_CLASS(obj);
+  obj_info->klass = NULL;
+  obj_info->size = 0;
+  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
+    obj_info->klass = rb_class2name(klass);
+    if (BUILTIN_TYPE(obj) != T_NODE) {
+      obj_info->size = rb_obj_memsize_of(obj);
+    }
+  }
 
-  event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);
-  pack_event((rbkit_event_header *)event, arg->msgpacker);
-  free(event);
-  send_message(arg->sbuf);
+  collect_stack_trace(&(obj_info->stacktrace));
+
+  if(object_allocation_info_full()) {
+    event = new_rbkit_object_allocations_event(get_object_allocation_infos());
+    pack_event((rbkit_event_header *)event, arg->msgpacker);
+    send_message(arg->sbuf);
+    free(event);
+  }
+  push_new_object_allocation_info(obj_info);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
