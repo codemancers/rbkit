@@ -2,6 +2,7 @@
 #define RBKIT_OBJECT_TRACER
 
 #include "rbkit_stack_trace.h"
+#include "ruby/st.h"
 
 #define MAX_NEW_OBJ_INFOS 1000
 
@@ -15,12 +16,13 @@ typedef struct _rbkit_new_object_info {
   rbkit_stack_trace stacktrace;
 } rbkit_new_object_info;
 
-typedef struct _object_infos {
-  rbkit_new_object_info *info_list[MAX_NEW_OBJ_INFOS];
+typedef struct _rbkit_map {
+  st_table *table;
   size_t count;
-} rbkit_object_allocation_infos;
+} rbkit_map_t;
 
-void push_new_object_allocation_info(rbkit_new_object_info *info);
-rbkit_object_allocation_infos *get_object_allocation_infos();
-int object_allocation_info_full();
+void init_object_allocation_table();
+void add_new_object_info(rbkit_new_object_info *info);
+rbkit_map_t *get_allocation_map();
+
 #endif

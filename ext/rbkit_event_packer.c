@@ -32,43 +32,6 @@ static unsigned long get_message_counter() {
   return message_counter++;
 }
 
-static void pack_obj_created_event(rbkit_obj_created_event *event, msgpack_packer *packer) {
-  rbkit_allocation_info *info = event->allocation_info;
-  msgpack_pack_map(packer, 3);
-  pack_event_header(packer, event->event_header.event_type);
-
-  msgpack_pack_int(packer, rbkit_message_field_payload);
-  msgpack_pack_map(packer, 2);
-  msgpack_pack_int(packer, rbkit_message_field_object_id);
-  msgpack_pack_unsigned_long_long(packer, event->object_id);
-  msgpack_pack_int(packer, rbkit_message_field_class_name);
-  pack_string(packer, event->klass);
-  msgpack_pack_int(packer, rbkit_message_field_size);
-  if(event->size > 0)
-    msgpack_pack_unsigned_long(packer, event->size);
-  else
-    msgpack_pack_nil(packer);
-  //TODO: pack allocation info as well
-  msgpack_pack_int(packer, rbkit_message_field_file);
-  pack_string(packer, info->path);
-
-  msgpack_pack_int(packer, rbkit_message_field_line);
-  if(info->line > 0)
-    msgpack_pack_unsigned_long(packer, info->line);
-  else
-    msgpack_pack_nil(packer);
-}
-
-static void pack_obj_destroyed_event(rbkit_obj_destroyed_event *event, msgpack_packer *packer) {
-  msgpack_pack_map(packer, 3);
-  pack_event_header(packer, event->event_header.event_type);
-
-  msgpack_pack_int(packer, rbkit_message_field_payload);
-  msgpack_pack_map(packer, 1);
-  msgpack_pack_int(packer, rbkit_message_field_object_id);
-  msgpack_pack_unsigned_long_long(packer, event->object_id);
-}
-
 static void pack_event_header_only(rbkit_event_header *event_header, msgpack_packer *packer) {
   msgpack_pack_map(packer, 2);
   pack_event_header(packer, event_header->event_type);
@@ -281,15 +244,33 @@ static void pack_event_collection_event(rbkit_event_collection_event *event, msg
   sbuf->size += event->buffer_size;
 }
 
+static int pack_object_count_i(st_data_t key, st_data_t value, st_data_t arg) {
+  msgpack_packer *packer = (msgpack_packer *)arg;
+  char *obj_detail = (char *)key;
+  size_t count = (size_t)value;
 
-static void pack_object_allocations_event(rbkit_object_allocations_event *event, msgpack_packer *packer) {
-  size_t count;
-  rbkit_new_object_info *obj_info;
-  rbkit_stack_trace stacktrace;
-  rbkit_frame_data frame_data;
-  rbkit_object_allocation_infos *infos = event->infos;
-  size_t i;
+  pack_string(packer, obj_detail);
+  msgpack_pack_unsigned_long(packer, count);
+  free(obj_detail);
+  return ST_DELETE;
+}
 
+static int pack_location_i(st_data_t key, st_data_t value, st_data_t arg) {
+  msgpack_packer *packer = (msgpack_packer *)arg;
+  char *file = (char *)key;
+  rbkit_map_t *object_count_map = (rbkit_map_t *)value;
+
+  pack_string(packer, file);
+  msgpack_pack_map(packer, object_count_map->count);
+  st_foreach(object_count_map->table, pack_object_count_i, (st_data_t)packer);
+  free(file);
+  st_free_table(object_count_map->table);
+  free(object_count_map);
+  return ST_DELETE;
+}
+
+static void pack_allocation_snapshot_event(rbkit_allocation_snapshot_event *event, msgpack_packer *packer) {
+  rbkit_map_t *allocation_map = event->allocation_map;
   msgpack_pack_map(packer, 3);
 
   // Keys 1 & 2 - event type and timestamp
@@ -297,75 +278,12 @@ static void pack_object_allocations_event(rbkit_object_allocations_event *event,
 
   // Key 3 : Payload
   msgpack_pack_int(packer, rbkit_message_field_payload);
-  // Value 3: Array of samples
-  msgpack_pack_array(packer, infos->count);
+  // Value 3: Map of location => <object_count_map>
+  msgpack_pack_map(packer, allocation_map->count);
+  st_foreach(allocation_map->table, pack_location_i, (st_data_t)packer);
 
-  for(count = 0; count != infos->count; count++){
-    obj_info = infos->info_list[count];
-    msgpack_pack_map(packer, 6);
-
-    // object_id
-    msgpack_pack_int(packer, rbkit_message_field_object_id);
-    msgpack_pack_unsigned_long_long(packer, obj_info->object_id);
-
-    // klass
-    msgpack_pack_int(packer, rbkit_message_field_class_name);
-    pack_string(packer, obj_info->klass);
-
-    // file
-    msgpack_pack_int(packer, rbkit_message_field_file);
-    pack_string(packer, obj_info->file);
-
-    // line
-    msgpack_pack_int(packer, rbkit_message_field_line);
-    msgpack_pack_unsigned_long(packer, obj_info->line);
-
-    // size
-    msgpack_pack_int(packer, rbkit_message_field_size);
-    if(obj_info->size > 0)
-      msgpack_pack_unsigned_long(packer, obj_info->size);
-    else
-      msgpack_pack_nil(packer);
-
-    stacktrace = obj_info->stacktrace;
-
-    // stacktrace
-    msgpack_pack_int(packer, rbkit_message_field_stacktrace);
-    // Array of stack frames
-    msgpack_pack_array(packer, stacktrace.frame_count);
-    for (i = 0; i < stacktrace.frame_count; ++i) {
-      frame_data = stacktrace.frames[i];
-
-      msgpack_pack_map(packer, 6);
-      // method_name
-      msgpack_pack_int(packer, rbkit_message_field_method_name);
-      pack_string(packer, frame_data.method_name);
-
-      // label
-      msgpack_pack_int(packer, rbkit_message_field_label);
-      pack_string(packer, frame_data.label);
-
-      // file
-      msgpack_pack_int(packer, rbkit_message_field_file);
-      pack_string(packer, frame_data.file);
-
-      // line
-      msgpack_pack_int(packer, rbkit_message_field_line);
-      msgpack_pack_unsigned_long(packer, frame_data.line);
-
-      // singleton_method
-      msgpack_pack_int(packer, rbkit_message_field_singleton_method);
-      msgpack_pack_int(packer, frame_data.is_singleton_method);
-
-      // thread_id
-      msgpack_pack_int(packer, rbkit_message_field_thread_id);
-      msgpack_pack_unsigned_long(packer, frame_data.thread_id);
-    }
-    free(stacktrace.frames);
-    free(obj_info);
-  }
-  infos->count = 0;
-  /*free(infos);*/
+  st_free_table(allocation_map->table);
+  free(allocation_map);
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -373,11 +291,8 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
   msgpack_sbuffer_clear(sbuf);
 
   switch (event_header->event_type) {
-    case obj_created:
-      pack_obj_created_event((rbkit_obj_created_event *)event_header, packer);
-      break;
-    case obj_destroyed:
-      pack_obj_destroyed_event((rbkit_obj_destroyed_event *)event_header, packer);
+    case allocation_snapshot:
+      pack_allocation_snapshot_event((rbkit_allocation_snapshot_event *)event_header, packer);
       break;
     case gc_start:
       pack_event_header_only(event_header, packer);
@@ -402,9 +317,6 @@ void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
       break;
     case event_collection:
       pack_event_collection_event((rbkit_event_collection_event *)event_header, packer);
-      break;
-    case new_objects:
-      pack_object_allocations_event((rbkit_object_allocations_event *)event_header, packer);
       break;
     default:
       rb_raise(rb_eNotImpError,

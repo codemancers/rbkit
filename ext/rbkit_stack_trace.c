@@ -5,7 +5,6 @@
 #define BUF_SIZE 2048
 
 void collect_stack_trace(rbkit_stack_trace *stacktrace) {
-  rb_gc_disable();
   int start = 0;
   int lines[BUF_SIZE];
   VALUE buff[BUF_SIZE];
@@ -19,6 +18,7 @@ void collect_stack_trace(rbkit_stack_trace *stacktrace) {
   stacktrace->frames = frame_data;
   stacktrace->frame_count = collected_size;
 
+  rb_gc_disable();
   for (i=0; i<collected_size; i++) {
     rb_method_name = rb_profile_frame_method_name(buff[i]);
     if(NIL_P(rb_method_name)) {

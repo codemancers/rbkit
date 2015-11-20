@@ -20,6 +20,9 @@ module Rbkit
       @message_dispatch_timer = Rbkit::Timer.new(1) do
         send_messages
       end
+      @allocation_snapshot_timer = Rbkit::Timer.new(6) do
+        send_allocation_snapshot
+      end
     end
 
     def start(enable_object_trace: false, enable_gc_stats: false,
@@ -47,6 +50,7 @@ module Rbkit
           end
           @gc_stats_timer.run if @enable_gc_stats
           @message_dispatch_timer.run
+          @allocation_snapshot_timer.run if enable_object_trace
           # Let us sleep this thread for a bit, so as other things can run.
           sleep(0.05)
         end

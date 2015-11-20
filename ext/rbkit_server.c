@@ -92,10 +92,15 @@ static VALUE send_messages() {
 
 // Adds the message to the queue and sends the queued messages if
 // the queue becomes full.
-static void send_message(msgpack_sbuffer *buffer) {
+static void queue_buffer_for_sending(msgpack_sbuffer *buffer) {
   queue_message(buffer);
   if(queued_message_count() == MESSAGE_BATCH_SIZE)
     send_messages();
+}
+
+static void send_buffer(msgpack_sbuffer *buffer) {
+  queue_message(buffer);
+  send_messages();
 }
 
 static void
@@ -106,7 +111,7 @@ gc_start_i(VALUE tpval, void *data)
   event->event_type = gc_start;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  queue_buffer_for_sending(arg->sbuf);
 }
 
 static void
@@ -117,7 +122,7 @@ gc_end_mark_i(VALUE tpval, void *data)
   event->event_type = gc_end_m;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  queue_buffer_for_sending(arg->sbuf);
 }
 
 static void
@@ -128,7 +133,7 @@ gc_end_sweep_i(VALUE tpval, void *data)
   event->event_type = gc_end_s;
   pack_event(event, arg->msgpacker);
   free(event);
-  send_message(arg->sbuf);
+  queue_buffer_for_sending(arg->sbuf);
 }
 
 static void
@@ -147,7 +152,6 @@ create_gc_hooks(void)
 
 // Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
-  rbkit_object_allocations_event *event;
   rbkit_logger * arg = (rbkit_logger *)data;
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
@@ -160,38 +164,24 @@ static void newobj_i(VALUE tpval, void *data) {
   klass = RBASIC_CLASS(obj);
   obj_info->klass = NULL;
   obj_info->size = 0;
-  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    obj_info->klass = rb_class2name(klass);
-    if (BUILTIN_TYPE(obj) != T_NODE) {
+  if (BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
+    if(!NIL_P(klass)) {
+      obj_info->klass = rb_class2name(klass);
+    }
+    if(BUILTIN_TYPE(obj) != T_NODE) {
       obj_info->size = rb_obj_memsize_of(obj);
     }
   }
 
-  collect_stack_trace(&(obj_info->stacktrace));
-
-  if(object_allocation_info_full()) {
-    event = new_rbkit_object_allocations_event(get_object_allocation_infos());
-    pack_event((rbkit_event_header *)event, arg->msgpacker);
-    send_message(arg->sbuf);
-    free(event);
-  }
-  push_new_object_allocation_info(obj_info);
+  obj_info->stacktrace.frame_count = 0;
+  /*collect_stack_trace(&(obj_info->stacktrace));*/
+  add_new_object_info(obj_info);
+  free(obj_info);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
 static void freeobj_i(VALUE tpval, void *data) {
-  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
-  rbkit_obj_destroyed_event *event;
-  VALUE obj = rb_tracearg_object(tparg);
-  rbkit_logger *arg = (rbkit_logger *)data;
-
-  // Delete allocation info of freed object
-  delete_rbkit_allocation_info(tparg, obj, arg->str_table, arg->object_table);
-
-  event = new_rbkit_obj_destroyed_event(FIX2ULONG(rb_obj_id(obj)));
-  pack_event((rbkit_event_header *)event, arg->msgpacker);
-  free(event);
-  send_message(arg->sbuf);
+  // TODO: Decrement count from allocation details map
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -226,6 +216,8 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
     items[0].socket = zmq_response_socket;
     items[0].events = ZMQ_POLLIN;
   }
+
+  init_object_allocation_table();
 
   // Creates a list which aggregates messages
   message_list_new();
@@ -341,7 +333,7 @@ static void queue_cpu_sample_for_sending(rbkit_cpu_sample *sample) {
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
-  send_message(buffer);
+  queue_buffer_for_sending(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
 }
@@ -419,9 +411,32 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
   pack_event((rbkit_event_header *)event, packer);
   free(event);
 
-  send_message(buffer);
+  queue_buffer_for_sending(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
+  return Qnil;
+}
+
+static VALUE send_allocation_snapshot(VALUE self) {
+  msgpack_sbuffer *buffer;
+  msgpack_packer *packer;
+  rbkit_allocation_snapshot_event *event;
+  rbkit_map_t *allocation_map = get_allocation_map();
+
+  if(logger == 0)
+    return Qfalse;
+
+  buffer = msgpack_sbuffer_new();
+  packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
+
+  event = new_rbkit_allocation_snapshot_event(allocation_map);
+  pack_event((rbkit_event_header *)event, packer);
+  free(event);
+  send_buffer(buffer);
+  msgpack_sbuffer_free(buffer);
+  msgpack_packer_free(packer);
+
+  init_object_allocation_table();
   return Qnil;
 }
 
@@ -450,7 +465,7 @@ static VALUE send_objectspace_dump(VALUE self) {
   // until we've packed all objects.
   while(event->packed_objects < event->object_count) {
     pack_event((rbkit_event_header *)event, pk);
-    send_message(buffer);
+    queue_buffer_for_sending(buffer);
   }
 
   free(event->current_page);
@@ -496,4 +511,5 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "status", rbkit_status_as_hash, 0);
   rb_define_method(rbkit_server, "send_handshake_response", send_handshake_response, 0);
   rb_define_method(rbkit_server, "send_command_ack", send_command_ack, 0);
+  rb_define_method(rbkit_server, "send_allocation_snapshot", send_allocation_snapshot, 0);
 }
