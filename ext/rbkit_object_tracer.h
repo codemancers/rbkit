@@ -16,13 +16,20 @@ typedef struct _rbkit_new_object_info {
   rbkit_stack_trace stacktrace;
 } rbkit_new_object_info;
 
+typedef struct _object_allocation_details {
+  size_t count;
+  rbkit_stack_trace **stacktraces;
+} rbkit_object_allocation_details;
+
 typedef struct _rbkit_map {
   st_table *table;
   size_t count;
 } rbkit_map_t;
 
+void init_object_tracer();
 void init_object_allocation_table();
 void add_new_object_info(rbkit_new_object_info *info);
 rbkit_map_t *get_allocation_map();
+int watch_object_source(const char *file, const char *object_detail);
 
 #endif

@@ -27,7 +27,8 @@ typedef enum _rbkit_message_fields {
   rbkit_message_field_label,
   rbkit_message_field_singleton_method,
   rbkit_message_field_thread_id,
-  rbkit_message_field_stacktrace
+  rbkit_message_field_stacktrace,
+  rbkit_message_field_count
 } rbkit_message_fields;
 
 VALUE rbkit_message_fields_as_hash();

@@ -217,7 +217,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
     items[0].events = ZMQ_POLLIN;
   }
 
-  init_object_allocation_table();
+  init_object_tracer();
 
   // Creates a list which aggregates messages
   message_list_new();
@@ -487,6 +487,13 @@ static VALUE disable_test_mode() {
   return Qnil;
 }
 
+static VALUE watch_object_allocation(VALUE self, VALUE rb_file, VALUE rb_object_detail) {
+  char *file = StringValueCStr(rb_file);
+  char *object_detail = StringValueCStr(rb_object_detail);
+  watch_object_source(file, object_detail);
+  return Qnil;
+}
+
 void Init_rbkit_server(void) {
   VALUE rbkit_module, rbkit_server;
 
@@ -512,4 +519,5 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "send_handshake_response", send_handshake_response, 0);
   rb_define_method(rbkit_server, "send_command_ack", send_command_ack, 0);
   rb_define_method(rbkit_server, "send_allocation_snapshot", send_allocation_snapshot, 0);
+  rb_define_method(rbkit_server, "watch_object_allocation", watch_object_allocation, 2);
 }

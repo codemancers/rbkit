@@ -65,7 +65,7 @@ module Rbkit
     end
     server = Rbkit::Server.new(DEFAULT_PUB_PORT, DEFAULT_REQ_PORT) #Rbkit.start_profiling(profiling_options)
     server.start(profiling_options)
-    yield
+    yield(server)
     server.stop
   end
 end

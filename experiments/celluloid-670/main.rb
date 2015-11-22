@@ -14,12 +14,14 @@ Thread.new do
   end
 end
 
-Rbkit.profile(memory: true) do
+Rbkit.profile(memory: true) do |server|
 
-loop do
-  f = Celluloid::Future.new { 1 }
-  f.value
-  sleep 0.005
-end
+  server.watch_object_allocation("/Users/emil/.rvm/gems/ruby-2.2.2/gems/celluloid-essentials-0.20.2/lib/celluloid/internals/uuid.rb", "36 String 40")
+
+  loop do
+    f = Celluloid::Future.new { 1 }
+    f.value
+    sleep 0.005
+  end
 
 end

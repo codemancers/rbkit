@@ -16,7 +16,7 @@ typedef struct _rbkit_stack_trace {
   rbkit_frame_data *frames;
 } rbkit_stack_trace;
 
-void collect_stack_trace(rbkit_stack_trace *stacktrace);
+rbkit_stack_trace *collect_stack_trace();
 void delete_stack_trace(rbkit_stack_trace *stacktrace);
 
 #endif

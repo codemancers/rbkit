@@ -244,13 +244,65 @@ static void pack_event_collection_event(rbkit_event_collection_event *event, msg
   sbuf->size += event->buffer_size;
 }
 
-static int pack_object_count_i(st_data_t key, st_data_t value, st_data_t arg) {
+static void pack_stacktrace(msgpack_packer *packer, rbkit_stack_trace *stacktrace) {
+  size_t count;
+  if(stacktrace == NULL) {
+    msgpack_pack_nil(packer);
+  } else {
+    msgpack_pack_array(packer, stacktrace->frame_count);
+
+    for(count = 0; count < stacktrace->frame_count; count++){
+      msgpack_pack_map(packer, 5);
+
+      // method_name
+      msgpack_pack_int(packer, rbkit_message_field_method_name);
+      pack_string(packer, stacktrace->frames[count].method_name);
+
+      // label
+      /*msgpack_pack_int(packer, rbkit_message_field_label);*/
+      /*pack_string(packer, stacktrace->frames[count].label);*/
+
+      // file
+      msgpack_pack_int(packer, rbkit_message_field_file);
+      pack_string(packer, stacktrace->frames[count].file);
+
+      // line
+      msgpack_pack_int(packer, rbkit_message_field_line);
+      msgpack_pack_unsigned_long(packer, stacktrace->frames[count].line);
+
+      // singleton_method
+      msgpack_pack_int(packer, rbkit_message_field_singleton_method);
+      msgpack_pack_int(packer, stacktrace->frames[count].is_singleton_method);
+
+      // thread_id
+      msgpack_pack_int(packer, rbkit_message_field_thread_id);
+      msgpack_pack_unsigned_long(packer, stacktrace->frames[count].thread_id);
+    }
+  }
+}
+
+static int pack_allocation_details_i(st_data_t key, st_data_t value, st_data_t arg) {
   msgpack_packer *packer = (msgpack_packer *)arg;
   char *obj_detail = (char *)key;
-  size_t count = (size_t)value;
+  size_t i;
+  rbkit_object_allocation_details *allocation_details = (rbkit_object_allocation_details *)value;
 
   pack_string(packer, obj_detail);
-  msgpack_pack_unsigned_long(packer, count);
+
+  msgpack_pack_map(packer, 2);
+  msgpack_pack_int(packer, rbkit_message_field_count);
+  msgpack_pack_unsigned_long(packer, allocation_details->count);
+
+  msgpack_pack_int(packer, rbkit_message_field_stacktrace);
+  if(allocation_details->stacktraces == NULL) {
+    msgpack_pack_nil(packer);
+  } else {
+    msgpack_pack_array(packer, allocation_details->count);
+    for (i = 0; i < allocation_details->count; ++i) {
+      pack_stacktrace(packer, allocation_details->stacktraces[i]);
+    }
+  }
+
   free(obj_detail);
   return ST_DELETE;
 }
@@ -262,7 +314,7 @@ static int pack_location_i(st_data_t key, st_data_t value, st_data_t arg) {
 
   pack_string(packer, file);
   msgpack_pack_map(packer, object_count_map->count);
-  st_foreach(object_count_map->table, pack_object_count_i, (st_data_t)packer);
+  st_foreach(object_count_map->table, pack_allocation_details_i, (st_data_t)packer);
   free(file);
   st_free_table(object_count_map->table);
   free(object_count_map);
@@ -278,6 +330,7 @@ static void pack_allocation_snapshot_event(rbkit_allocation_snapshot_event *even
 
   // Key 3 : Payload
   msgpack_pack_int(packer, rbkit_message_field_payload);
+
   // Value 3: Map of location => <object_count_map>
   msgpack_pack_map(packer, allocation_map->count);
   st_foreach(allocation_map->table, pack_location_i, (st_data_t)packer);
@@ -344,6 +397,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("singleton_method")), INT2FIX(rbkit_message_field_singleton_method));
   rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
   rb_hash_aset(events, ID2SYM(rb_intern("stacktrace")), INT2FIX(rbkit_message_field_stacktrace));
+  rb_hash_aset(events, ID2SYM(rb_intern("count")), INT2FIX(rbkit_message_field_count));
   OBJ_FREEZE(events);
   return events;
 }

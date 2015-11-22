@@ -4,7 +4,7 @@
 
 #define BUF_SIZE 2048
 
-void collect_stack_trace(rbkit_stack_trace *stacktrace) {
+rbkit_stack_trace *collect_stack_trace() {
   int start = 0;
   int lines[BUF_SIZE];
   VALUE buff[BUF_SIZE];
@@ -15,6 +15,7 @@ void collect_stack_trace(rbkit_stack_trace *stacktrace) {
 
   int collected_size = rb_profile_frames(start, sizeof(buff) / sizeof(VALUE), buff, lines);
   rbkit_frame_data *frame_data = malloc(sizeof(rbkit_frame_data) * collected_size);
+  rbkit_stack_trace *stacktrace = malloc(sizeof(rbkit_stack_trace));
   stacktrace->frames = frame_data;
   stacktrace->frame_count = collected_size;
 
@@ -49,6 +50,7 @@ void collect_stack_trace(rbkit_stack_trace *stacktrace) {
     frame_data[i].thread_id = thread_id;
   }
   rb_gc_enable();
+  return stacktrace;
 }
 
 void delete_stack_trace(rbkit_stack_trace *stacktrace) {
