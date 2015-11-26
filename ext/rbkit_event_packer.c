@@ -203,7 +203,7 @@ static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer 
   msgpack_pack_array(packer, sample->frame_count);
 
   for(count = 0; count != sample->frame_count; count++){
-    msgpack_pack_map(packer, 6);
+    msgpack_pack_map(packer, 5);
 
     // method_name
     msgpack_pack_int(packer, rbkit_message_field_method_name);
@@ -226,8 +226,8 @@ static void pack_cpu_sample_event(rbkit_cpu_sample_event *event, msgpack_packer 
     msgpack_pack_int(packer, sample->frames[count].is_singleton_method);
 
     // thread_id
-    msgpack_pack_int(packer, rbkit_message_field_thread_id);
-    msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);
+    /*msgpack_pack_int(packer, rbkit_message_field_thread_id);*/
+    /*msgpack_pack_unsigned_long(packer, sample->frames[count].thread_id);*/
   }
 }
 
@@ -252,7 +252,7 @@ static void pack_stacktrace(msgpack_packer *packer, rbkit_stack_trace *stacktrac
     msgpack_pack_array(packer, stacktrace->frame_count);
 
     for(count = 0; count < stacktrace->frame_count; count++){
-      msgpack_pack_map(packer, 5);
+      msgpack_pack_map(packer, 4);
 
       // method_name
       msgpack_pack_int(packer, rbkit_message_field_method_name);
@@ -275,35 +275,46 @@ static void pack_stacktrace(msgpack_packer *packer, rbkit_stack_trace *stacktrac
       msgpack_pack_int(packer, stacktrace->frames[count].is_singleton_method);
 
       // thread_id
-      msgpack_pack_int(packer, rbkit_message_field_thread_id);
-      msgpack_pack_unsigned_long(packer, stacktrace->frames[count].thread_id);
+      /*msgpack_pack_int(packer, rbkit_message_field_thread_id);*/
+      /*msgpack_pack_unsigned_long(packer, stacktrace->frames[count].thread_id);*/
     }
   }
+}
+
+static int pack_stack_trace_counts_i(st_data_t key, st_data_t value, st_data_t arg) {
+  msgpack_packer *packer = (msgpack_packer *)arg;
+  rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;
+  size_t count = (size_t)value;
+
+  msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);
+  msgpack_pack_unsigned_long(packer, count);
+
+  return ST_CONTINUE;
 }
 
 static int pack_allocation_details_i(st_data_t key, st_data_t value, st_data_t arg) {
   msgpack_packer *packer = (msgpack_packer *)arg;
   char *obj_detail = (char *)key;
-  size_t i;
   rbkit_object_allocation_details *allocation_details = (rbkit_object_allocation_details *)value;
 
-  pack_string(packer, obj_detail);
 
+  pack_string(packer, obj_detail);
   msgpack_pack_map(packer, 2);
+
   msgpack_pack_int(packer, rbkit_message_field_count);
   msgpack_pack_unsigned_long(packer, allocation_details->count);
 
   msgpack_pack_int(packer, rbkit_message_field_stacktrace);
-  if(allocation_details->stacktraces == NULL) {
+  if(allocation_details->stacktraces_counts_map->count == 0) {
     msgpack_pack_nil(packer);
   } else {
-    msgpack_pack_array(packer, allocation_details->count);
-    for (i = 0; i < allocation_details->count; ++i) {
-      pack_stacktrace(packer, allocation_details->stacktraces[i]);
-    }
+    msgpack_pack_map(packer, allocation_details->stacktraces_counts_map->count);
+    st_foreach(allocation_details->stacktraces_counts_map->table, pack_stack_trace_counts_i, (st_data_t)packer);
   }
 
   free(obj_detail);
+  free_map(allocation_details->stacktraces_counts_map);
+  free(allocation_details);
   return ST_DELETE;
 }
 
@@ -316,9 +327,28 @@ static int pack_location_i(st_data_t key, st_data_t value, st_data_t arg) {
   msgpack_pack_map(packer, object_count_map->count);
   st_foreach(object_count_map->table, pack_allocation_details_i, (st_data_t)packer);
   free(file);
-  st_free_table(object_count_map->table);
-  free(object_count_map);
+  free_map(object_count_map);
   return ST_DELETE;
+}
+
+static int pack_stack_trace_i(st_data_t key, st_data_t value, st_data_t arg) {
+  msgpack_packer *packer = (msgpack_packer *)arg;
+  rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;
+
+  // Key : stack_trace_id
+  msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);
+  // Value: stacktrace
+  pack_stacktrace(packer, stacktrace);
+  return ST_DELETE;
+}
+
+static void pack_stack_traces(msgpack_packer *packer) {
+  rbkit_map_t *stacktrace_map = get_stack_traces();
+  // Map { <stack_trace_id>: <stacktrace> }
+  msgpack_pack_map(packer, stacktrace_map->count);
+  fprintf(stderr, "We've got %lu stacktraces to pack\n", stacktrace_map->count);
+  st_foreach(stacktrace_map->table, pack_stack_trace_i, (st_data_t)packer);
+  clear_stack_traces();
 }
 
 static void pack_allocation_snapshot_event(rbkit_allocation_snapshot_event *event, msgpack_packer *packer) {
@@ -331,12 +361,22 @@ static void pack_allocation_snapshot_event(rbkit_allocation_snapshot_event *even
   // Key 3 : Payload
   msgpack_pack_int(packer, rbkit_message_field_payload);
 
-  // Value 3: Map of location => <object_count_map>
+  // Value 3: Map : {stacktrace: ... , allocations: ...}
+  msgpack_pack_map(packer, 2);
+
+  // Key 3.1: stacktrace
+  msgpack_pack_int(packer, rbkit_message_field_stacktrace);
+  // Value 3.1: Map : { <stack_trace_id>: <stacktrace> }
+  pack_stack_traces(packer);
+
+  // Key 3.2: allocations
+  msgpack_pack_int(packer, rbkit_message_field_allocations);
+
+  // Value 3.2: Map : { <file>: <object_signature> }
   msgpack_pack_map(packer, allocation_map->count);
   st_foreach(allocation_map->table, pack_location_i, (st_data_t)packer);
 
-  st_free_table(allocation_map->table);
-  free(allocation_map);
+  free_map(allocation_map);
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
@@ -398,6 +438,7 @@ VALUE rbkit_message_fields_as_hash() {
   rb_hash_aset(events, ID2SYM(rb_intern("thread_id")), INT2FIX(rbkit_message_field_thread_id));
   rb_hash_aset(events, ID2SYM(rb_intern("stacktrace")), INT2FIX(rbkit_message_field_stacktrace));
   rb_hash_aset(events, ID2SYM(rb_intern("count")), INT2FIX(rbkit_message_field_count));
+  rb_hash_aset(events, ID2SYM(rb_intern("allocations")), INT2FIX(rbkit_message_field_allocations));
   OBJ_FREEZE(events);
   return events;
 }

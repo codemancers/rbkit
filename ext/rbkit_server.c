@@ -218,6 +218,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
   }
 
   init_object_tracer();
+  init_stack_trace_maps();
 
   // Creates a list which aggregates messages
   message_list_new();

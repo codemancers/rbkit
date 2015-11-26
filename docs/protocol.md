@@ -14,8 +14,7 @@ contained in the message. It's basically the following enum :
 
 ```c
 enum EventType {
-  obj_created,
-  obj_destroyed,
+  allocation_snapshot,
   gc_start,
   gc_end_m,
   gc_end_s,
@@ -32,16 +31,15 @@ ie,
 ```ruby
 # Rbkit::EVENT_TYPES
 {
-  "obj_created"       => 0,
-  "obj_destroyed"     => 1,
-  "gc_start"          => 2,
-  "gc_end_m"          => 3,
-  "gc_end_s"          => 4,
-  "object_space_dump" => 5,
-  "gc_stats"          => 6,
-  "event_collection"  => 7,
-  "handshake"         => 8,
-  "cpu_sample"       => 9
+  "allocation_snapshot" => 0
+  "gc_start"            => 1,
+  "gc_end_m"            => 2,
+  "gc_end_s"            => 3,
+  "object_space_dump"   => 4,
+  "gc_stats"            => 5,
+  "event_collection"    => 6,
+  "handshake"           => 7,
+  "cpu_sample"          => 8
 }
 ```
 
@@ -67,7 +65,9 @@ enums used.
   'method_name'            => 12,
   'label'                  => 13,
   'singleton_method'       => 14,
-  'thread_id'              => 15
+  'thread_id'              => 15,
+  'stacktrace'             => 16,
+  'count'                  => 17
 }
 ```
 
@@ -129,18 +129,28 @@ is of the following format :
 }
 ```
 
-### Message frame for NEW_OBJECT :
+### Message frame for allocation_snapshot :
 
-When the NEW_OBJECT event is triggered, the object id and the class name
-are sent as the payload.
+allocation_snapshot event is not part of event collections. These events
+are sent to the client in a constant interval of 6 seconds (TODO: Make this configurable).
 
 ```yaml
 {
-  event_type: obj_created,
+  event_type: allocation_snapshot,
   timestamp: <timestamp in milliseconds>,
   payload: {
-    object_id: <OBJECT_ID>,
-    class_name: <CLASS_NAME>
+    "stacktrace" => {
+      <STACK_TRACE_ID> => [ <STACKTRACE1>, <STACKTRACE2>, ..],
+      ...
+    },
+    "allocations" => {
+      <FILE_PATH> => {
+        <"#{LINE} #{TYPE} #{SIZE}"> => {
+          "count" => <COUNT>,
+          "stacktrace" => <STACK_TRACE_ID>
+        }
+      }
+    }
   }
 }
 ```

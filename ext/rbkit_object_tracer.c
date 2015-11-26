@@ -13,11 +13,15 @@ typedef struct _watched_object_sources {
 
 // Struct named `statics` contain the static variables used in this file.
 // The values of this struct are initialized here.
-struct _object_tracer_statics {
+static struct _object_tracer_statics {
   rbkit_map_t *location_map;
+  rbkit_map_t *stacktrace_map;
+  st_table *stacktrace_strings_stacktrace_ids_table;
   watched_object_sources *watched_object_sources;
 } statics = {
   .location_map = NULL,
+  .stacktrace_map = NULL,
+  .stacktrace_strings_stacktrace_ids_table = NULL,
   .watched_object_sources = NULL
 };
 
@@ -26,7 +30,7 @@ struct _object_tracer_statics {
 // Reason we do this: it's very common that objects of the same kind are usually
 // created multiple times at the same location. An object's origin can usually be identified
 // uniquely based on the line number, object type and the size of the object.
-static char *get_object_detail_string(unsigned long line, const char *klass, size_t size) {
+static char *get_object_signature(unsigned long line, const char *klass, size_t size) {
   const int n = snprintf(NULL, 0, "%lu %s %lu", line, klass, size);
   char *str = malloc(n + 1);;
   snprintf(str, n+1, "%lu %s %lu", line, klass, size);
@@ -45,10 +49,22 @@ static int watching_object_allocation(const char *file, const char *object_detai
   return 0;
 }
 
-static void collect_object_allocation_info(rbkit_map_t *object_count_map, const char *file, unsigned long line, const char *klass, size_t size) {
-  st_table *table = object_count_map->table;
-  /*st_data_t n;*/
-  char *key = get_object_detail_string(line, klass, size);
+static void increment_stacktrace_count(rbkit_map_t *stacktraces_counts_map, rbkit_stack_trace *stacktrace) {
+  st_table *table = stacktraces_counts_map->table;
+  size_t n;
+
+  if (st_lookup(table, (st_data_t)stacktrace, &n)) {
+    st_insert(table, (st_data_t)stacktrace, n+1);
+  }
+  else {
+    st_add_direct(table, (st_data_t)stacktrace, 1);
+    stacktraces_counts_map->count++;
+  }
+}
+
+static void collect_object_allocation_info(rbkit_map_t *files_object_signatures_map, const char *file, unsigned long line, const char *klass, size_t size) {
+  st_table *table = files_object_signatures_map->table;
+  char *key = get_object_signature(line, klass, size);
   int exists = 0;
   rbkit_object_allocation_details *allocation_details = NULL; //malloc(sizeof(object_allocation_details));
 
@@ -61,33 +77,21 @@ static void collect_object_allocation_info(rbkit_map_t *object_count_map, const 
     }
     else {
       allocation_details = malloc(sizeof(rbkit_object_allocation_details));
-      allocation_details->stacktraces = NULL;
       allocation_details->count = 0;
+      allocation_details->stacktraces_counts_map = new_num_map();
+
       st_add_direct(table, (st_data_t)key, (st_data_t)allocation_details);
-      object_count_map->count++;
+      files_object_signatures_map->count++;
     }
     if(watching_object_allocation(file, key)) {
-      if(exists) {
-        allocation_details->stacktraces = realloc(allocation_details->stacktraces, (allocation_details->count+1) * sizeof(rbkit_stack_trace *));
-      } else {
-        allocation_details->stacktraces = malloc(sizeof(rbkit_stack_trace *));
-      }
-      allocation_details->stacktraces[allocation_details->count] = collect_stack_trace();
+      increment_stacktrace_count(allocation_details->stacktraces_counts_map, collect_stack_trace());
     }
     allocation_details->count++;
   }
 }
 
-static rbkit_map_t *new_object_count_map() {
-  rbkit_map_t * object_count_map = malloc(sizeof(rbkit_map_t));
-  object_count_map->table = st_init_strtable();
-  object_count_map->count = 0;
-  return object_count_map;
-}
-
 static void add_location_map(const char *file, unsigned long line, const char *klass, size_t size) {
-  /*st_table *table = NULL;*/
-  rbkit_map_t *obj_count_map;
+  rbkit_map_t *files_object_signatures_map;
   char *new_string;
   size_t len = strlen(file);
 
@@ -97,24 +101,30 @@ static void add_location_map(const char *file, unsigned long line, const char *k
   else {
     if (st_lookup(statics.location_map->table,
           (st_data_t)file,
-          (st_data_t *)&obj_count_map)) {
+          (st_data_t *)&files_object_signatures_map)) {
       // Do nothing
     }
     else {
       new_string = (char *)malloc(len+1);
-      strncpy(new_string, file, len);
+      memcpy(new_string, file, len);
       new_string[len] = 0;
-      obj_count_map = new_object_count_map();//st_init_strtable();
-      /*table = obj_count_map;*/
-      st_add_direct(statics.location_map->table, (st_data_t)new_string, (st_data_t)obj_count_map);
-      statics.location_map->count ++;
+      files_object_signatures_map = new_str_map();
+      st_add_direct(statics.location_map->table, (st_data_t)new_string, (st_data_t)files_object_signatures_map);
+      statics.location_map->count++;
     }
-    collect_object_allocation_info(obj_count_map, file, line, klass, size);
+    collect_object_allocation_info(files_object_signatures_map, file, line, klass, size);
   }
+}
+
+static void init_stacktrace_map() {
+  statics.stacktrace_map = malloc(sizeof(rbkit_map_t));
+  statics.stacktrace_map->table = st_init_numtable();
+  statics.stacktrace_strings_stacktrace_ids_table = st_init_strtable();
 }
 
 void init_object_tracer() {
   init_object_allocation_table();
+  init_stacktrace_map();
   statics.watched_object_sources = malloc(sizeof(watched_object_sources));
   statics.watched_object_sources->count = 0;
 }
