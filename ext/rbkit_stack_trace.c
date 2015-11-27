@@ -85,7 +85,7 @@ static void increment_stack_trace_count(rbkit_stack_trace *stacktrace) {
   }
 }
 
-static void record_stack_trace(rbkit_stack_trace *stacktrace, char *signature) {
+static rbkit_stack_trace * record_stack_trace(rbkit_stack_trace *stacktrace, char *signature) {
   stack_traces_with_same_methods *stack_trace_ids;
   rbkit_stack_trace *existing_stack_trace = NULL;
   if (st_lookup(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t *)&stack_trace_ids)) {
@@ -99,6 +99,7 @@ static void record_stack_trace(rbkit_stack_trace *stacktrace, char *signature) {
     st_add_direct(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t)stack_trace_ids);
   }
   increment_stack_trace_count(existing_stack_trace);
+  return existing_stack_trace;
 }
 
 static char * copy_rb_string(VALUE source) {
@@ -108,8 +109,6 @@ static char * copy_rb_string(VALUE source) {
   return dest;
 }
 
-// TODO: Make sure correct stack trace ids are returned if stacktrace
-// is already recorded
 rbkit_stack_trace *collect_stack_trace() {
   int start = 0;
   int lines[BUF_SIZE];
@@ -167,8 +166,7 @@ rbkit_stack_trace *collect_stack_trace() {
     /*frame_data[i].thread_id = thread_id;*/
   }
   rb_gc_enable();
-  record_stack_trace(stacktrace, method_names_concatenated);
-  return stacktrace;
+  return record_stack_trace(stacktrace, method_names_concatenated);
 }
 
 void delete_stack_trace(rbkit_stack_trace *stacktrace) {
