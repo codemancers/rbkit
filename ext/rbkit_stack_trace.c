@@ -4,11 +4,6 @@
 
 #define BUF_SIZE 2048
 
-typedef struct _stack_traces_with_same_methods {
-  size_t count;
-  rbkit_stack_trace **traces;
-} stack_traces_with_same_methods;
-
 // Struct named `statics` contain the static variables used in this file.
 // The values of this struct are initialized here.
 static struct _stack_trace_statics {
@@ -59,17 +54,41 @@ static int same_stack_trace(rbkit_stack_trace *trace1, rbkit_stack_trace *trace2
   return 1;
 }
 
-static rbkit_stack_trace *find_or_create_stack_trace_entry(stack_traces_with_same_methods *stack_trace_ids, rbkit_stack_trace *stacktrace) {
-  size_t i;
-  for (i = 0; i < stack_trace_ids->count; ++i) {
-    if(same_stack_trace(stacktrace, stack_trace_ids->traces[i])) {
-      delete_stack_trace(stacktrace);
-      return stack_trace_ids->traces[i];
-    }
+typedef struct _find_stacktrace_arg {
+  rbkit_stack_trace *existing_stack_trace;
+  rbkit_stack_trace *new_stack_trace;
+} find_stacktrace_arg;
+
+static int find_stacktrace_i(st_data_t key, st_data_t value, st_data_t a) {
+  find_stacktrace_arg *arg = (find_stacktrace_arg *)a;
+  rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;
+  if(same_stack_trace(stacktrace, arg->new_stack_trace)) {
+    arg->existing_stack_trace = stacktrace;
+    return ST_STOP;
   }
-  stack_trace_ids->traces = realloc(stack_trace_ids->traces, (stack_trace_ids->count++ * sizeof(rbkit_stack_trace *)));
-  stack_trace_ids->traces[stack_trace_ids->count - 1] = stacktrace;
-  return stacktrace;
+  return ST_CONTINUE;
+}
+
+static rbkit_stack_trace *find_or_create_stack_trace_entry(st_table *stacktraces_with_same_methods, rbkit_stack_trace *stacktrace) {
+  size_t n;
+  rbkit_stack_trace *return_stacktrace = stacktrace;
+  st_table *table = stacktraces_with_same_methods;
+  find_stacktrace_arg *arg = malloc(sizeof(find_stacktrace_arg));
+  arg->existing_stack_trace = NULL;
+  arg->new_stack_trace = stacktrace;
+
+  st_foreach(stacktraces_with_same_methods, find_stacktrace_i, (st_data_t)arg);
+  if(arg->existing_stack_trace) {
+    delete_stack_trace(stacktrace);
+    return_stacktrace = arg->existing_stack_trace;
+  }
+
+  if (st_lookup(table, (st_data_t)return_stacktrace, &n)) {
+    st_insert(table, (st_data_t)stacktrace, n+1);
+  } else {
+    st_add_direct(table, (st_data_t)return_stacktrace, 1);
+  }
+  return return_stacktrace;
 }
 
 static void increment_stack_trace_count(rbkit_stack_trace *stacktrace) {
@@ -86,17 +105,15 @@ static void increment_stack_trace_count(rbkit_stack_trace *stacktrace) {
 }
 
 static rbkit_stack_trace * record_stack_trace(rbkit_stack_trace *stacktrace, char *signature) {
-  stack_traces_with_same_methods *stack_trace_ids;
+  st_table *stacktraces_with_same_methods;
   rbkit_stack_trace *existing_stack_trace = NULL;
-  if (st_lookup(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t *)&stack_trace_ids)) {
-    existing_stack_trace = find_or_create_stack_trace_entry(stack_trace_ids, stacktrace);
+  if (st_lookup(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t *)&stacktraces_with_same_methods)) {
+    existing_stack_trace = find_or_create_stack_trace_entry(stacktraces_with_same_methods, stacktrace);
   } else {
-    stack_trace_ids = malloc(sizeof(stack_traces_with_same_methods));
-    stack_trace_ids->traces = malloc(sizeof(rbkit_stack_trace *));
-    stack_trace_ids->traces[0] = stacktrace;
-    stack_trace_ids->count = 1;
+    stacktraces_with_same_methods = st_init_numtable();
     existing_stack_trace = stacktrace;
-    st_add_direct(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t)stack_trace_ids);
+    st_add_direct(stacktraces_with_same_methods, (st_data_t)stacktrace, 1);
+    st_add_direct(statics.stacktrace_strings_stacktrace_ids_table, (st_data_t)signature, (st_data_t)stacktraces_with_same_methods);
   }
   increment_stack_trace_count(existing_stack_trace);
   return existing_stack_trace;
