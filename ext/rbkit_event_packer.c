@@ -12,8 +12,8 @@ static void pack_string(msgpack_packer *packer, const char *string) {
 		msgpack_pack_raw(packer, length);
 		msgpack_pack_raw_body(packer, string, length);
 #else
-		msgpack_pack_bin(packer, length);
-		msgpack_pack_bin_body(packer, string, length);
+		msgpack_pack_str(packer, length);
+		msgpack_pack_str_body(packer, string, length);
 #endif
   }
 }
