@@ -8,8 +8,13 @@ static void pack_string(msgpack_packer *packer, const char *string) {
     msgpack_pack_nil(packer);
   } else {
     int length = (int)strlen(string);
-    msgpack_pack_raw(packer, length);
-    msgpack_pack_raw_body(packer, string, length);
+#if defined(MSGPACK_VERSION_MAJOR) && MSGPACK_VERSION_MAJOR < 1
+		msgpack_pack_raw(packer, length);
+		msgpack_pack_raw_body(packer, string, length);
+#else
+		msgpack_pack_str(packer, length);
+		msgpack_pack_str_body(packer, string, length);
+#endif
   }
 }
 
