@@ -15,6 +15,7 @@
 #include "rbkit_sampling_profiler.h"
 #include "rbkit_test_helper.h"
 #include "rbkit_object_tracer.h"
+#include "rbkit_unique_string.h"
 
 static rbkit_logger *logger;
 static void *zmq_publisher = NULL;
@@ -152,36 +153,42 @@ create_gc_hooks(void)
 
 // Refer Ruby source ext/objspace/object_tracing.c::newobj_i
 static void newobj_i(VALUE tpval, void *data) {
-  rbkit_logger * arg = (rbkit_logger *)data;
+  /*rbkit_logger * arg = (rbkit_logger *)data;*/
+
   rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
   VALUE obj = rb_tracearg_object(tparg);
-  rbkit_allocation_info *info = new_rbkit_allocation_info(tparg, arg->str_table, arg->object_table);
-  rbkit_new_object_info *obj_info = malloc(sizeof(rbkit_new_object_info));
-  VALUE klass;
-  obj_info->file = info->path;
-  obj_info->line = info->line;
-  obj_info->object_id = FIX2ULONG(rb_obj_id(obj));
-  klass = RBASIC_CLASS(obj);
-  obj_info->klass = NULL;
-  obj_info->size = 0;
+  VALUE rb_file = rb_tracearg_path(tparg);
+  VALUE rb_line = rb_tracearg_lineno(tparg);
+  VALUE rb_klass = RBASIC_CLASS(obj);
+  unsigned long object_id = FIX2ULONG(rb_obj_id(obj));
+  char *file = RTEST(rb_file) ? StringValueCStr(rb_file) : NULL;
+  char *klass = NULL;
+  unsigned long line = FIX2LONG(rb_line);
+  size_t size = 0;
+  rbkit_object_signature *signature;
+
   if (BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
-    if(!NIL_P(klass)) {
-      obj_info->klass = rb_class2name(klass);
+    if(!NIL_P(rb_klass)) {
+      klass = (char *)rb_class2name(rb_klass);
     }
     if(BUILTIN_TYPE(obj) != T_NODE) {
-      obj_info->size = rb_obj_memsize_of(obj);
+      size = (size_t)rb_obj_memsize_of(obj);
     }
   }
 
-  obj_info->stacktrace.frame_count = 0;
-  /*collect_stack_trace(&(obj_info->stacktrace));*/
-  add_new_object_info(obj_info);
-  free(obj_info);
+  signature = find_or_create_object_signature(object_id, file, line, klass, size);
+
+  /*rbkit_object_info *obj_info = get_new_object_info(tpval);*/
+  /*add_new_object_info(obj_info);*/
+  /*free(obj_info);*/
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
 static void freeobj_i(VALUE tpval, void *data) {
-  // TODO: Decrement count from allocation details map
+  /*rbkit_new_object_info *obj_info = get_object_info(tpval);*/
+  /*rbkit_object_info *obj_info = get_new_object_info(tpval);*/
+  /*add_freed_object_info(obj_info);*/
+  /*free(obj_info);*/
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
@@ -219,6 +226,7 @@ static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
 
   init_object_tracer();
   init_stack_trace_maps();
+  init_unique_string_table();
 
   // Creates a list which aggregates messages
   message_list_new();
@@ -421,8 +429,8 @@ static VALUE send_hash_as_event(int argc, VALUE *argv, VALUE self) {
 static VALUE send_allocation_snapshot(VALUE self) {
   msgpack_sbuffer *buffer;
   msgpack_packer *packer;
-  rbkit_allocation_snapshot_event *event;
-  rbkit_map_t *allocation_map = get_allocation_map();
+  /*rbkit_allocation_snapshot_event *event;*/
+  /*rbkit_map_t *allocation_map = get_allocation_map();*/
 
   if(logger == 0)
     return Qfalse;
@@ -430,14 +438,14 @@ static VALUE send_allocation_snapshot(VALUE self) {
   buffer = msgpack_sbuffer_new();
   packer = msgpack_packer_new(buffer, msgpack_sbuffer_write);
 
-  event = new_rbkit_allocation_snapshot_event(allocation_map);
-  pack_event((rbkit_event_header *)event, packer);
-  free(event);
+  /*event = new_rbkit_allocation_snapshot_event(allocation_map);*/
+  /*pack_event((rbkit_event_header *)event, packer);*/
+  /*free(event);*/
   send_buffer(buffer);
   msgpack_sbuffer_free(buffer);
   msgpack_packer_free(packer);
 
-  init_object_allocation_table();
+  /*init_object_allocation_table();*/
   return Qnil;
 }
 
@@ -488,12 +496,12 @@ static VALUE disable_test_mode() {
   return Qnil;
 }
 
-static VALUE watch_object_allocation(VALUE self, VALUE rb_file, VALUE rb_object_detail) {
-  char *file = StringValueCStr(rb_file);
-  char *object_detail = StringValueCStr(rb_object_detail);
-  watch_object_source(file, object_detail);
-  return Qnil;
-}
+/*static VALUE watch_object_allocation(VALUE self, VALUE rb_file, VALUE rb_object_detail) {*/
+  /*char *file = StringValueCStr(rb_file);*/
+  /*char *object_detail = StringValueCStr(rb_object_detail);*/
+  /*watch_object_source(file, object_detail);*/
+  /*return Qnil;*/
+/*}*/
 
 void Init_rbkit_server(void) {
   VALUE rbkit_module, rbkit_server;
@@ -520,5 +528,5 @@ void Init_rbkit_server(void) {
   rb_define_method(rbkit_server, "send_handshake_response", send_handshake_response, 0);
   rb_define_method(rbkit_server, "send_command_ack", send_command_ack, 0);
   rb_define_method(rbkit_server, "send_allocation_snapshot", send_allocation_snapshot, 0);
-  rb_define_method(rbkit_server, "watch_object_allocation", watch_object_allocation, 2);
+  /*rb_define_method(rbkit_server, "watch_object_allocation", watch_object_allocation, 2);*/
 }

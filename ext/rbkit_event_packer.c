@@ -244,139 +244,139 @@ static void pack_event_collection_event(rbkit_event_collection_event *event, msg
   sbuf->size += event->buffer_size;
 }
 
-static void pack_stacktrace(msgpack_packer *packer, rbkit_stack_trace *stacktrace) {
-  size_t count;
-  if(stacktrace == NULL) {
-    msgpack_pack_nil(packer);
-  } else {
-    msgpack_pack_array(packer, stacktrace->frame_count);
+/*static void pack_stacktrace(msgpack_packer *packer, rbkit_stack_trace *stacktrace) {*/
+  /*size_t count;*/
+  /*if(stacktrace == NULL) {*/
+    /*msgpack_pack_nil(packer);*/
+  /*} else {*/
+    /*msgpack_pack_array(packer, stacktrace->frame_count);*/
 
-    for(count = 0; count < stacktrace->frame_count; count++){
-      msgpack_pack_map(packer, 4);
+    /*for(count = 0; count < stacktrace->frame_count; count++){*/
+      /*msgpack_pack_map(packer, 4);*/
 
-      // method_name
-      msgpack_pack_int(packer, rbkit_message_field_method_name);
-      pack_string(packer, stacktrace->frames[count].method_name);
+      /*// method_name*/
+      /*msgpack_pack_int(packer, rbkit_message_field_method_name);*/
+      /*pack_string(packer, stacktrace->frames[count].method_name);*/
 
-      // label
-      /*msgpack_pack_int(packer, rbkit_message_field_label);*/
-      /*pack_string(packer, stacktrace->frames[count].label);*/
+      /*// label*/
+      /*[>msgpack_pack_int(packer, rbkit_message_field_label);<]*/
+      /*[>pack_string(packer, stacktrace->frames[count].label);<]*/
 
-      // file
-      msgpack_pack_int(packer, rbkit_message_field_file);
-      pack_string(packer, stacktrace->frames[count].file);
+      /*// file*/
+      /*msgpack_pack_int(packer, rbkit_message_field_file);*/
+      /*pack_string(packer, stacktrace->frames[count].file);*/
 
-      // line
-      msgpack_pack_int(packer, rbkit_message_field_line);
-      msgpack_pack_unsigned_long(packer, stacktrace->frames[count].line);
+      /*// line*/
+      /*msgpack_pack_int(packer, rbkit_message_field_line);*/
+      /*msgpack_pack_unsigned_long(packer, stacktrace->frames[count].line);*/
 
-      // singleton_method
-      msgpack_pack_int(packer, rbkit_message_field_singleton_method);
-      msgpack_pack_int(packer, stacktrace->frames[count].is_singleton_method);
+      /*// singleton_method*/
+      /*msgpack_pack_int(packer, rbkit_message_field_singleton_method);*/
+      /*msgpack_pack_int(packer, stacktrace->frames[count].is_singleton_method);*/
 
-      // thread_id
-      /*msgpack_pack_int(packer, rbkit_message_field_thread_id);*/
-      /*msgpack_pack_unsigned_long(packer, stacktrace->frames[count].thread_id);*/
-    }
-  }
-}
+      /*// thread_id*/
+      /*[>msgpack_pack_int(packer, rbkit_message_field_thread_id);<]*/
+      /*[>msgpack_pack_unsigned_long(packer, stacktrace->frames[count].thread_id);<]*/
+    /*}*/
+  /*}*/
+/*}*/
 
-static int pack_stack_trace_counts_i(st_data_t key, st_data_t value, st_data_t arg) {
-  msgpack_packer *packer = (msgpack_packer *)arg;
-  rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;
-  size_t count = (size_t)value;
+/*static int pack_stack_trace_counts_i(st_data_t key, st_data_t value, st_data_t arg) {*/
+  /*msgpack_packer *packer = (msgpack_packer *)arg;*/
+  /*rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;*/
+  /*size_t count = (size_t)value;*/
 
-  msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);
-  msgpack_pack_unsigned_long(packer, count);
+  /*msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);*/
+  /*msgpack_pack_unsigned_long(packer, count);*/
 
-  return ST_CONTINUE;
-}
+  /*return ST_CONTINUE;*/
+/*}*/
 
-static int pack_allocation_details_i(st_data_t key, st_data_t value, st_data_t arg) {
-  msgpack_packer *packer = (msgpack_packer *)arg;
-  char *obj_detail = (char *)key;
-  rbkit_object_allocation_details *allocation_details = (rbkit_object_allocation_details *)value;
+/*static int pack_allocation_details_i(st_data_t key, st_data_t value, st_data_t arg) {*/
+  /*msgpack_packer *packer = (msgpack_packer *)arg;*/
+  /*char *obj_detail = (char *)key;*/
+  /*rbkit_object_allocation_details *allocation_details = (rbkit_object_allocation_details *)value;*/
 
 
-  pack_string(packer, obj_detail);
-  msgpack_pack_map(packer, 2);
+  /*pack_string(packer, obj_detail);*/
+  /*msgpack_pack_map(packer, 2);*/
 
-  msgpack_pack_int(packer, rbkit_message_field_count);
-  msgpack_pack_unsigned_long(packer, allocation_details->count);
+  /*msgpack_pack_int(packer, rbkit_message_field_count);*/
+  /*msgpack_pack_unsigned_long(packer, allocation_details->count);*/
 
-  msgpack_pack_int(packer, rbkit_message_field_stacktrace);
-  if(allocation_details->stacktraces_counts_map->count == 0) {
-    msgpack_pack_nil(packer);
-  } else {
-    msgpack_pack_map(packer, allocation_details->stacktraces_counts_map->count);
-    st_foreach(allocation_details->stacktraces_counts_map->table, pack_stack_trace_counts_i, (st_data_t)packer);
-  }
+  /*msgpack_pack_int(packer, rbkit_message_field_stacktrace);*/
+  /*if(allocation_details->stacktraces_counts_map->count == 0) {*/
+    /*msgpack_pack_nil(packer);*/
+  /*} else {*/
+    /*msgpack_pack_map(packer, allocation_details->stacktraces_counts_map->count);*/
+    /*st_foreach(allocation_details->stacktraces_counts_map->table, pack_stack_trace_counts_i, (st_data_t)packer);*/
+  /*}*/
 
-  free(obj_detail);
-  free_map(allocation_details->stacktraces_counts_map);
-  free(allocation_details);
-  return ST_DELETE;
-}
+  /*free(obj_detail);*/
+  /*free_map(allocation_details->stacktraces_counts_map);*/
+  /*free(allocation_details);*/
+  /*return ST_DELETE;*/
+/*}*/
 
-static int pack_location_i(st_data_t key, st_data_t value, st_data_t arg) {
-  msgpack_packer *packer = (msgpack_packer *)arg;
-  char *file = (char *)key;
-  rbkit_map_t *object_count_map = (rbkit_map_t *)value;
+/*static int pack_location_i(st_data_t key, st_data_t value, st_data_t arg) {*/
+  /*msgpack_packer *packer = (msgpack_packer *)arg;*/
+  /*char *file = (char *)key;*/
+  /*rbkit_map_t *object_count_map = (rbkit_map_t *)value;*/
 
-  pack_string(packer, file);
-  msgpack_pack_map(packer, object_count_map->count);
-  st_foreach(object_count_map->table, pack_allocation_details_i, (st_data_t)packer);
-  free(file);
-  free_map(object_count_map);
-  return ST_DELETE;
-}
+  /*pack_string(packer, file);*/
+  /*msgpack_pack_map(packer, object_count_map->count);*/
+  /*st_foreach(object_count_map->table, pack_allocation_details_i, (st_data_t)packer);*/
+  /*free(file);*/
+  /*free_map(object_count_map);*/
+  /*return ST_DELETE;*/
+/*}*/
 
-static int pack_stack_trace_i(st_data_t key, st_data_t value, st_data_t arg) {
-  msgpack_packer *packer = (msgpack_packer *)arg;
-  rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;
+/*static int pack_stack_trace_i(st_data_t key, st_data_t value, st_data_t arg) {*/
+  /*msgpack_packer *packer = (msgpack_packer *)arg;*/
+  /*rbkit_stack_trace *stacktrace = (rbkit_stack_trace *)key;*/
 
-  // Key : stack_trace_id
-  msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);
-  // Value: stacktrace
-  pack_stacktrace(packer, stacktrace);
-  return ST_DELETE;
-}
+  /*// Key : stack_trace_id*/
+  /*msgpack_pack_unsigned_long_long(packer, (unsigned long long)stacktrace);*/
+  /*// Value: stacktrace*/
+  /*pack_stacktrace(packer, stacktrace);*/
+  /*return ST_DELETE;*/
+/*}*/
 
-static void pack_stack_traces(msgpack_packer *packer) {
-  rbkit_map_t *stacktrace_map = get_stack_traces();
-  // Map { <stack_trace_id>: <stacktrace> }
-  msgpack_pack_map(packer, stacktrace_map->count);
-  fprintf(stderr, "We've got %lu stacktraces to pack\n", stacktrace_map->count);
-  st_foreach(stacktrace_map->table, pack_stack_trace_i, (st_data_t)packer);
-  clear_stack_traces();
-}
+/*static void pack_stack_traces(msgpack_packer *packer) {*/
+  /*rbkit_map_t *stacktrace_map = get_stack_traces();*/
+  /*// Map { <stack_trace_id>: <stacktrace> }*/
+  /*msgpack_pack_map(packer, stacktrace_map->count);*/
+  /*fprintf(stderr, "We've got %lu stacktraces to pack\n", stacktrace_map->count);*/
+  /*st_foreach(stacktrace_map->table, pack_stack_trace_i, (st_data_t)packer);*/
+  /*clear_stack_traces();*/
+/*}*/
 
 static void pack_allocation_snapshot_event(rbkit_allocation_snapshot_event *event, msgpack_packer *packer) {
-  rbkit_map_t *allocation_map = event->allocation_map;
-  msgpack_pack_map(packer, 3);
+  /*rbkit_map_t *allocation_map = event->allocation_map;*/
+  /*msgpack_pack_map(packer, 3);*/
 
-  // Keys 1 & 2 - event type and timestamp
-  pack_event_header(packer, event->event_header.event_type);
+  /*// Keys 1 & 2 - event type and timestamp*/
+  /*pack_event_header(packer, event->event_header.event_type);*/
 
-  // Key 3 : Payload
-  msgpack_pack_int(packer, rbkit_message_field_payload);
+  /*// Key 3 : Payload*/
+  /*msgpack_pack_int(packer, rbkit_message_field_payload);*/
 
-  // Value 3: Map : {stacktrace: ... , allocations: ...}
-  msgpack_pack_map(packer, 2);
+  /*// Value 3: Map : {stacktrace: ... , allocations: ...}*/
+  /*msgpack_pack_map(packer, 2);*/
 
-  // Key 3.1: stacktrace
-  msgpack_pack_int(packer, rbkit_message_field_stacktrace);
-  // Value 3.1: Map : { <stack_trace_id>: <stacktrace> }
-  pack_stack_traces(packer);
+  /*// Key 3.1: stacktrace*/
+  /*msgpack_pack_int(packer, rbkit_message_field_stacktrace);*/
+  /*// Value 3.1: Map : { <stack_trace_id>: <stacktrace> }*/
+  /*pack_stack_traces(packer);*/
 
-  // Key 3.2: allocations
-  msgpack_pack_int(packer, rbkit_message_field_allocations);
+  /*// Key 3.2: allocations*/
+  /*msgpack_pack_int(packer, rbkit_message_field_allocations);*/
 
-  // Value 3.2: Map : { <file>: <object_signature> }
-  msgpack_pack_map(packer, allocation_map->count);
-  st_foreach(allocation_map->table, pack_location_i, (st_data_t)packer);
+  /*// Value 3.2: Map : { <file>: <object_signature> }*/
+  /*msgpack_pack_map(packer, allocation_map->count);*/
+  /*st_foreach(allocation_map->table, pack_location_i, (st_data_t)packer);*/
 
-  free_map(allocation_map);
+  /*free_map(allocation_map);*/
 }
 
 void pack_event(rbkit_event_header *event_header, msgpack_packer *packer) {
