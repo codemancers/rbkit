@@ -16,7 +16,7 @@ typedef struct _rbkit_object_signature {
 
 rbkit_object_signature *find_or_create_object_signature(const unsigned long object_id,
     const char *file, const unsigned long line, const char *klass, const size_t size);
-void add_new_object_info(rbkit_object_signature *signature);
+void delete_object(unsigned long object_id);
 void init_object_tracer();
 
 #endif

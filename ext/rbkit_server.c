@@ -165,7 +165,6 @@ static void newobj_i(VALUE tpval, void *data) {
   char *klass = NULL;
   unsigned long line = FIX2LONG(rb_line);
   size_t size = 0;
-  rbkit_object_signature *signature;
 
   if (BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
     if(!NIL_P(rb_klass)) {
@@ -176,19 +175,15 @@ static void newobj_i(VALUE tpval, void *data) {
     }
   }
 
-  signature = find_or_create_object_signature(object_id, file, line, klass, size);
-
-  /*rbkit_object_info *obj_info = get_new_object_info(tpval);*/
-  /*add_new_object_info(obj_info);*/
-  /*free(obj_info);*/
+  find_or_create_object_signature(object_id, file, line, klass, size);
 }
 
 // Refer Ruby source ext/objspace/object_tracing.c::freeobj_i
 static void freeobj_i(VALUE tpval, void *data) {
-  /*rbkit_new_object_info *obj_info = get_object_info(tpval);*/
-  /*rbkit_object_info *obj_info = get_new_object_info(tpval);*/
-  /*add_freed_object_info(obj_info);*/
-  /*free(obj_info);*/
+  rb_trace_arg_t *tparg = rb_tracearg_from_tracepoint(tpval);
+  VALUE obj = rb_tracearg_object(tparg);
+  unsigned long object_id = FIX2ULONG(rb_obj_id(obj));
+  delete_object(object_id);
 }
 
 static VALUE start_stat_server(int argc, VALUE *argv, VALUE self) {
