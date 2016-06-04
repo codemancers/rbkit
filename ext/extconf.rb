@@ -25,8 +25,8 @@ def download_file(url)
 end
 
 def download_and_install_zeromq_from_source
-  url = "http://download.zeromq.org/zeromq-4.0.4.tar.gz"
-  filename = "zeromq-4.0.4.tar.gz"
+  url = "https://github.com/zeromq/zeromq4-1/releases/download/v4.1.4/zeromq-4.1.4.tar.gz"
+  filename = "zeromq-4.1.4.tar.gz"
   basename = File.basename(filename, '.tar.gz')
   dist_path = "#{CWD}/#{basename}/dist"
 
@@ -38,8 +38,8 @@ def download_and_install_zeromq_from_source
     download_file(url)
     system("tar zxvf #{filename}")
     Dir.chdir(basename) do
-      system("./configure CPPFLAGS='-fPIC' --prefix='#{dist_path}'")
-      system("cd src && make && make install")
+      system("./configure CPPFLAGS='-fPIC' --prefix='#{dist_path}' --without-libsodium")
+      system("make && make install")
     end
   end
   FileUtils.cp "#{dist_path}/lib/libzmq.a", "#{CWD}/libzmq.a"
