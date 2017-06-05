@@ -1,6 +1,9 @@
 <img src="./logo.png" height="30px" /> Rbkit
 ============================================
 
+## [WARNING]
+This project is not maintained at the moment. We have plans to work on a universal profiling protocol after which we intend to rewrite major parts of Rbkit.
+
 [![Join the chat at https://gitter.im/code-mancers/rbkit](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/code-mancers/rbkit?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [![Gem Version](https://badge.fury.io/rb/rbkit.svg)](http://badge.fury.io/rb/rbkit)
