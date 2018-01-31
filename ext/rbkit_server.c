@@ -154,7 +154,12 @@ static void newobj_i(VALUE tpval, void *data) {
   VALUE obj = rb_tracearg_object(tparg);
   VALUE klass = RBASIC_CLASS(obj);
   const char *class_name = NULL;
+
+#ifdef T_IMEMO                  /* 2.3.x and above */
+  if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS && BUILTIN_TYPE(obj) != T_IMEMO)
+#else
   if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS)
+#endif
     class_name = rb_class2name(klass);
 
   event = new_rbkit_obj_created_event(FIX2ULONG(rb_obj_id(obj)), class_name, info);

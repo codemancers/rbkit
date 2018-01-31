@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 class Bar;end
 class ShortLivedBar;end
 class Foo
@@ -6,6 +7,7 @@ class Foo
     @bar = Bar.new
     ShortLivedBar.new #not referenced outside this scope
     @array = [1, 2, 3, 4, 5, 6, 7]
+    RbConfig::CONFIG["host_os"] =~ %r!(msdos|mswin|djgpp|mingw|[Ww]indows)!
   end
 end
 
@@ -15,10 +17,10 @@ end
 
 def bar_obj_line
   # Warning! Hardcoded line number below ¯\_(ツ)_/¯
-  6
+  7
 end
 
 def array_line
   # Warning! Hardcoded line number below ¯\_(ツ)_/¯
-  8
+  9
 end
