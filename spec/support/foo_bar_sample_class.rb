@@ -6,6 +6,7 @@ class Foo
     @bar = Bar.new
     ShortLivedBar.new #not referenced outside this scope
     @array = [1, 2, 3, 4, 5, 6, 7]
+    RbConfig::CONFIG["host_os"] =~ %r!(msdos|mswin|djgpp|mingw|[Ww]indows)!
   end
 end
 
