@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 class Bar;end
 class ShortLivedBar;end
 class Foo
@@ -16,10 +17,10 @@ end
 
 def bar_obj_line
   # Warning! Hardcoded line number below ¯\_(ツ)_/¯
-  6
+  7
 end
 
 def array_line
   # Warning! Hardcoded line number below ¯\_(ツ)_/¯
-  8
+  9
 end

@@ -94,7 +94,7 @@ static int heap_obj_i(void *vstart, void *vend, size_t stride, void *dump_data)
 
   for (; obj != (VALUE)vend; obj += stride) {
     klass = RBASIC_CLASS(obj);
-    if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS) {
+    if (!NIL_P(klass) && BUILTIN_TYPE(obj) != T_NONE && BUILTIN_TYPE(obj) != T_ZOMBIE && BUILTIN_TYPE(obj) != T_ICLASS && BUILTIN_TYPE(obj) != T_IMEMO) {
       dump_heap_object(obj, (rbkit_object_dump *)dump_data);
     }
   }
