@@ -28,7 +28,7 @@ Gem::Specification.new do |s|
   s.extensions = 'ext/extconf.rb'
   s.require_paths = ["lib"]
 
-  s.homepage = "http://rbkit.codemancers.com"
+  s.homepage = "https://rbkit.c9s.dev/"
   s.licenses = ["MIT"]
   s.summary = "Ruby profiler for the rest of us"
   s.add_development_dependency("rspec", "~> 3.0.0")
