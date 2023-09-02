@@ -19,6 +19,6 @@ typedef struct _rbkit_cpu_sample {
 
 typedef void (*queue_sample_func_ptr) (rbkit_cpu_sample *);
 
-void rbkit_install_sampling_profiler(int wall_time, int interval, queue_sample_func_ptr func);
+void rbkit_install_sampling_profiler(int wall_time, int interval, int depth, queue_sample_func_ptr func);
 void rbkit_uninstall_sampling_profiler();
 #endif

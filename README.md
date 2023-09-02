@@ -102,7 +102,8 @@ Rbkit.start_profiling(
   enable_cpu_profiling: true,
   clock_type: :wall,
   cpu_profiling_mode: :sampling,
-  cpu_sampling_interval_usec: 1000
+  cpu_sampling_interval_usec: 1000,
+  cpu_sampling_depth: 10
 )
 ```
 
@@ -125,6 +126,7 @@ Arguments:
 |clock_type                 | :wall/:cpu   | :wall         | Specifies clock type to use in CPU profiling     |
 |cpu_profiling_mode         | :sampling    | :sampling     | CPU profiling mode - currently only sampling     |
 |cpu_sampling_interval_usec | Fixnums      | 1000          | CPU Sampling interval un usec, if sampling mode  |
+|cpu_sampling_depth         | Fixnums      | 10            | Depth of stack frame collected by CPU sampler    |
 
 
 ## Development
